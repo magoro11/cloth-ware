@@ -1,0 +1,131 @@
+"use client";
+
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useToast } from "@/components/toast-provider";
+
+type Contact = {
+  id: string;
+  label: string;
+  role: "BUYER" | "SELLER";
+};
+
+type Message = {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  content: string;
+  createdAt: string;
+};
+
+export function MessageCenter({ currentUserId, contacts }: { currentUserId: string; contacts: Contact[] }) {
+  const { pushToast } = useToast();
+  const [activeId, setActiveId] = useState<string>(contacts[0]?.id || "");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [content, setContent] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const activeContact = useMemo(() => contacts.find((contact) => contact.id === activeId), [contacts, activeId]);
+
+  useEffect(() => {
+    if (!activeId) return;
+
+    let mounted = true;
+    async function loadMessages() {
+      const response = await fetch(`/api/messages?recipientId=${activeId}`);
+      const payload = await response.json();
+      if (mounted && response.ok) {
+        setMessages(payload.messages || []);
+      }
+    }
+
+    void loadMessages();
+    const interval = setInterval(loadMessages, 2500);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [activeId]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!activeId || !content.trim()) return;
+    setSending(true);
+    const response = await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recipientId: activeId, content }),
+    });
+    const payload = await response.json();
+    setSending(false);
+
+    if (!response.ok) {
+      pushToast(payload.error || "Unable to send message");
+      return;
+    }
+
+    setContent("");
+    setMessages((prev) => [...prev, payload.message]);
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[260px,1fr]">
+      <aside className="rounded-2xl border border-black/10 p-3 dark:border-white/10">
+        <h2 className="text-sm font-semibold">Conversations</h2>
+        <div className="mt-3 space-y-2">
+          {contacts.length === 0 ? <p className="text-sm opacity-65">No active contacts yet.</p> : null}
+          {contacts.map((contact) => (
+            <button
+              key={contact.id}
+              onClick={() => setActiveId(contact.id)}
+              className={`w-full rounded-xl border px-3 py-2 text-left text-sm ${
+                activeId === contact.id
+                  ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                  : "border-black/10 dark:border-white/10"
+              }`}
+            >
+              <p className="font-medium">{contact.label}</p>
+              <p className="text-xs opacity-75">{contact.role}</p>
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <section className="rounded-2xl border border-black/10 p-4 dark:border-white/10">
+        <div className="border-b border-black/10 pb-3 dark:border-white/10">
+          <p className="font-semibold">{activeContact?.label || "Select a conversation"}</p>
+        </div>
+        <div className="mt-3 h-[340px] space-y-2 overflow-y-auto rounded-xl bg-black/[0.03] p-3 dark:bg-white/[0.03]">
+          {messages.length === 0 ? <p className="text-sm opacity-65">No messages yet.</p> : null}
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${
+                message.senderId === currentUserId
+                  ? "ml-auto bg-black text-white dark:bg-white dark:text-black"
+                  : "bg-white dark:bg-[#1b2030]"
+              }`}
+            >
+              <p>{message.content}</p>
+              <p className="mt-1 text-[10px] opacity-70">{new Date(message.createdAt).toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+        <form onSubmit={handleSubmit} className="mt-3 flex gap-2">
+          <input
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            placeholder={activeId ? "Type your message..." : "Select a conversation first"}
+            disabled={!activeId}
+            className="w-full rounded-lg border border-black/15 bg-transparent p-2.5"
+          />
+          <button
+            disabled={sending || !activeId}
+            className="rounded-lg bg-black px-4 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
+          >
+            Send
+          </button>
+        </form>
+      </section>
+    </div>
+  );
+}
