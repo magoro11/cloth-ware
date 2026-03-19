@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Cormorant_Garamond, Manrope } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
@@ -44,7 +45,9 @@ export default function RootLayout({
       <body className={`${display.variable} ${body.variable} antialiased`}>
         <AppProviders>
           <SiteHeader />
-          <AnalyticsTracker />
+          <Suspense fallback={null}>
+            <AnalyticsTracker />
+          </Suspense>
           <div className="min-h-[calc(100vh-4rem)]">{children}</div>
           <SiteFooter />
           <MobileBottomNav />
