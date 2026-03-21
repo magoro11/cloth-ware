@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/access";
 import { errorStatus } from "@/lib/errors";
-import { initiateMpesaStk } from "@/lib/mpesa";
+import { initiateMpesaStk, MpesaStkError } from "@/lib/mpesa";
 
 const schema = z.object({
   bookingId: z.string(),
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : "M-Pesa checkout failed";
     const status = msg === "Unauthorized" ? 401 : errorStatus(error, 400);
-    const details = (error as any)?.details;
+    const details = error instanceof MpesaStkError ? error.details : undefined;
     return NextResponse.json({ error: msg, details }, { status });
   }
 }

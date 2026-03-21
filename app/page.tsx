@@ -139,15 +139,15 @@ export default async function Home() {
         <h2 className="font-serif text-3xl">Testimonials</h2>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           <blockquote className="rounded-2xl bg-black/[0.03] p-4 text-sm dark:bg-white/[0.04]">
-            "My gala outfit arrived pristine and on schedule. Seamless experience."
+            &ldquo;My gala outfit arrived pristine and on schedule. Seamless experience.&rdquo;
             <footer className="mt-2 text-xs uppercase tracking-wide opacity-60">Sophia M.</footer>
           </blockquote>
           <blockquote className="rounded-2xl bg-black/[0.03] p-4 text-sm dark:bg-white/[0.04]">
-            "Seller dashboard and payout tracking are excellent. It feels enterprise-grade."
+            &ldquo;Seller dashboard and payout tracking are excellent. It feels enterprise-grade.&rdquo;
             <footer className="mt-2 text-xs uppercase tracking-wide opacity-60">Ava Laurent</footer>
           </blockquote>
           <blockquote className="rounded-2xl bg-black/[0.03] p-4 text-sm dark:bg-white/[0.04]">
-            "I rent for events and resell older pieces in one place. Exactly what I needed."
+            &ldquo;I rent for events and resell older pieces in one place. Exactly what I needed.&rdquo;
             <footer className="mt-2 text-xs uppercase tracking-wide opacity-60">Jordan K.</footer>
           </blockquote>
         </div>

@@ -63,6 +63,16 @@ export type MpesaStkParams = {
   description?: string;
 };
 
+export class MpesaStkError extends Error {
+  readonly details: unknown;
+
+  constructor(message: string, details: unknown) {
+    super(message);
+    this.name = "MpesaStkError";
+    this.details = details;
+  }
+}
+
 export async function initiateMpesaStk({
   phone,
   amount,
@@ -111,10 +121,7 @@ export async function initiateMpesaStk({
   const data = await res.json();
 
   if (!res.ok) {
-    // Attach data for easier debugging by callers.
-    const error = new Error("M-Pesa STK failed");
-    (error as any).details = data;
-    throw error;
+    throw new MpesaStkError("M-Pesa STK failed", data);
   }
 
   return data;
