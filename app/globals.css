@@ -6,6 +6,8 @@
   --surface: #ffffff;
   --accent: #9f7a43;
   --muted: #6b6673;
+  --font-body: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
 }
 
 @theme inline {
