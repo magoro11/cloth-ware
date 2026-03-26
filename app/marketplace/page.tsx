@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { CATEGORIES, FEATURED_BRANDS } from "@/lib/constants";
 import { ItemCard } from "@/components/item-card";
-import { isDatabaseUnavailable } from "@/lib/errors";
+import { databaseErrorMessage, isDatabaseUnavailable } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +58,7 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
   let total = 0;
   let wishlistedIds = new Set<string>();
   let dbError = false;
+  let dbErrorMessage = "Database is currently unavailable.";
 
   const startDate = searchParams.start ? new Date(searchParams.start) : null;
   const endDate = searchParams.end ? new Date(searchParams.end) : null;
@@ -117,6 +118,8 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
     wishlistedIds = new Set(wishlist.map((entry) => entry.itemId));
   } catch (error) {
     dbError = isDatabaseUnavailable(error);
+    dbErrorMessage = databaseErrorMessage(error);
+    console.error("MarketplacePage database query failed", error);
   }
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -125,7 +128,7 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
     <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
       {dbError ? (
         <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-          Database is currently unavailable. Please check <code>DATABASE_URL</code> and database status.
+          {dbErrorMessage} Please check <code>DATABASE_URL</code> in Vercel and confirm the database is online.
         </div>
       ) : null}
 

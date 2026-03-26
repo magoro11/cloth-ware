@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { APP_NAME, APP_TAGLINE, CATEGORIES, FEATURED_BRANDS } from "@/lib/constants";
 import { ItemCard } from "@/components/item-card";
+import { databaseErrorMessage, isDatabaseUnavailable } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,8 @@ type ItemWithRelations = Prisma.ItemGetPayload<{
 export default async function Home() {
   let featuredItems: ItemWithRelations[] = [];
   let trendingItems: ItemWithRelations[] = [];
+  let dbError = false;
+  let dbErrorMessage = "Database is currently unavailable.";
 
   try {
     [featuredItems, trendingItems] = await Promise.all([
@@ -30,13 +33,22 @@ export default async function Home() {
         take: 8,
       }),
     ]);
-  } catch {
+  } catch (error) {
     featuredItems = [];
     trendingItems = [];
+    dbError = isDatabaseUnavailable(error);
+    dbErrorMessage = databaseErrorMessage(error);
+    console.error("Home page database query failed", error);
   }
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-10">
+      {dbError ? (
+        <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          {dbErrorMessage} Please check <code>DATABASE_URL</code> in Vercel and confirm the database is online.
+        </div>
+      ) : null}
+
       <section className="relative overflow-hidden rounded-3xl border border-black/10 bg-[linear-gradient(120deg,#f7f2e8_0%,#f3eee3_44%,#ebe5d8_100%)] p-8 shadow-sm dark:border-white/10 dark:bg-[linear-gradient(120deg,#161a24_0%,#121521_45%,#0f131d_100%)] md:p-14">
         <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-black/5 dark:bg-white/10" />
         <div className="absolute -bottom-20 left-1/3 h-52 w-52 rounded-full bg-[#b89b6f]/15 blur-3xl" />

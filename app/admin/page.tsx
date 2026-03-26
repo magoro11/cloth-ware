@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { AdminRepairForm } from "@/components/admin-repair-form";
 import { formatCurrency } from "@/lib/utils";
-import { isDatabaseUnavailable } from "@/lib/errors";
+import { databaseErrorMessage, isDatabaseUnavailable } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,7 @@ export default async function AdminPage() {
   let recentBookings: RecentBooking[] = [];
   let repairs: RepairWithItem[] = [];
   let dbError = false;
+  let dbErrorMessage = "Database is currently unavailable.";
 
   try {
     [recentBookings, repairs] = await Promise.all([
@@ -45,13 +46,15 @@ export default async function AdminPage() {
     ]);
   } catch (error) {
     dbError = isDatabaseUnavailable(error);
+    dbErrorMessage = databaseErrorMessage(error);
+    console.error("AdminPage database query failed", error);
   }
 
   if (dbError) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-8 md:px-8">
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
-          Database is currently unavailable. Please check <code>DATABASE_URL</code> and database status.
+          {dbErrorMessage} Please check <code>DATABASE_URL</code> in Vercel and confirm the database is online.
         </div>
       </main>
     );

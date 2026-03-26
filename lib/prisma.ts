@@ -1,8 +1,11 @@
 import { PrismaClient } from "@prisma/client";
+import { normalizeDatabaseEnv } from "@/lib/database-env";
 
 declare global {
   var prisma: PrismaClient | undefined;
 }
+
+normalizeDatabaseEnv();
 
 export const prisma =
   global.prisma ??
