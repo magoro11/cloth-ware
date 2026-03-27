@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { formatCurrency } from "@/lib/utils";
 import { RentalForm } from "@/components/rental-form";
 import { ItemCard } from "@/components/item-card";
-import { databaseErrorMessage, isDatabaseUnavailable } from "@/lib/errors";
+import { databaseErrorMessage, isDatabaseUnavailable, logDatabaseIssue } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +61,7 @@ export default async function ItemDetailsPage(props: { params: Params }) {
   } catch (error) {
     dbError = isDatabaseUnavailable(error);
     dbErrorMessage = databaseErrorMessage(error);
-    console.error("ItemDetailsPage database query failed", error);
+    logDatabaseIssue("ItemDetailsPage database query failed", error);
   }
 
   if (dbError) {

@@ -4,9 +4,14 @@ type MaybeError = {
   message?: string;
 };
 
+function getErrorMessage(error: unknown): string {
+  const e = (error || {}) as MaybeError;
+  return e.message || "";
+}
+
 export function databaseIssue(error: unknown): "missing_database_url" | "database_unreachable" | null {
   const e = (error || {}) as MaybeError;
-  const message = e.message || "";
+  const message = getErrorMessage(error);
 
   if (message.includes("Environment variable not found: DATABASE_URL")) {
     return "missing_database_url";
@@ -14,8 +19,11 @@ export function databaseIssue(error: unknown): "missing_database_url" | "databas
 
   if (
     e.code === "P1001" ||
+    e.code === "P1017" ||
     e.name === "PrismaClientInitializationError" ||
-    message.includes("Can't reach database server")
+    message.includes("Can't reach database server") ||
+    message.includes("forcibly closed by the remote host") ||
+    message.includes("ConnectionReset")
   ) {
     return "database_unreachable";
   }
@@ -39,6 +47,17 @@ export function databaseErrorMessage(error: unknown): string {
   }
 
   return "Database is currently unavailable.";
+}
+
+export function logDatabaseIssue(context: string, error: unknown): void {
+  const message = getErrorMessage(error);
+
+  if (isDatabaseUnavailable(error)) {
+    console.warn(`${context}: ${databaseErrorMessage(error)}${message ? ` (${message})` : ""}`);
+    return;
+  }
+
+  console.error(context, error);
 }
 
 export function errorStatus(error: unknown, fallback: number): number {

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { isDatabaseUnavailable } from "@/lib/errors";
 
 export default function Error({
   error,
@@ -11,6 +12,11 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
+    if (isDatabaseUnavailable(error)) {
+      console.warn(error.message);
+      return;
+    }
+
     console.error(error);
   }, [error]);
 

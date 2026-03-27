@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { APP_NAME, APP_TAGLINE, CATEGORIES, FEATURED_BRANDS } from "@/lib/constants";
 import { ItemCard } from "@/components/item-card";
-import { databaseErrorMessage, isDatabaseUnavailable } from "@/lib/errors";
+import { databaseErrorMessage, isDatabaseUnavailable, logDatabaseIssue } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,7 @@ export default async function Home() {
     trendingItems = [];
     dbError = isDatabaseUnavailable(error);
     dbErrorMessage = databaseErrorMessage(error);
-    console.error("Home page database query failed", error);
+    logDatabaseIssue("Home page database query failed", error);
   }
 
   return (

@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { CATEGORIES, FEATURED_BRANDS } from "@/lib/constants";
 import { ItemCard } from "@/components/item-card";
-import { databaseErrorMessage, isDatabaseUnavailable } from "@/lib/errors";
+import { databaseErrorMessage, isDatabaseUnavailable, logDatabaseIssue } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -119,7 +119,7 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
   } catch (error) {
     dbError = isDatabaseUnavailable(error);
     dbErrorMessage = databaseErrorMessage(error);
-    console.error("MarketplacePage database query failed", error);
+    logDatabaseIssue("MarketplacePage database query failed", error);
   }
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
