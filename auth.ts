@@ -4,14 +4,14 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { z } from "zod";
 import { compare } from "bcryptjs";
+import type { NextAuthConfig } from "next-auth";
 import { prisma } from "@/lib/prisma";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const isGoogleAuthConfigured = Boolean(googleClientId && googleClientSecret);
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+const config: NextAuthConfig = {
   session: { strategy: "jwt" },
   pages: {
     signIn: "/auth/signin",
@@ -42,9 +42,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!input.success) return null;
         const normalizedEmail = input.data.email.trim().toLowerCase();
-        const user = await prisma.user.findFirst({
-          where: { email: { equals: normalizedEmail, mode: "insensitive" } },
-        });
+        let user;
+        try {
+          user = await prisma.user.findFirst({
+            where: { email: { equals: normalizedEmail, mode: "insensitive" } },
+          });
+        } catch (error) {
+          console.error("Credentials lookup failed", error);
+          return null;
+        }
         if (!user?.passwordHash) return null;
 
         const isValid = await compare(input.data.password, user.passwordHash);
@@ -77,4 +83,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-});
+};
+
+if (isGoogleAuthConfigured) {
+  config.adapter = PrismaAdapter(prisma);
+}
+
+export const { handlers, signIn, signOut, auth } = NextAuth(config);
