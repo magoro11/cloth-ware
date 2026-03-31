@@ -40,6 +40,8 @@ npm install
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/rewear?schema=public"
 DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/rewear?schema=public"
+AUTH_SECRET="replace-with-a-long-random-secret"
+AUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="replace-with-a-long-random-secret"
 NEXTAUTH_URL="http://localhost:3000"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
@@ -54,6 +56,8 @@ OPENAI_API_KEY=""
 ```
 
 If you use Vercel Postgres, the app can also fall back to Vercel-provided variables such as `POSTGRES_PRISMA_URL`, `POSTGRES_URL`, and `POSTGRES_URL_NON_POOLING` when `DATABASE_URL` is not set manually.
+
+For authentication, either `AUTH_SECRET`/`AUTH_URL` or `NEXTAUTH_SECRET`/`NEXTAUTH_URL` can be used at runtime.
 
 3. Push database and seed
 

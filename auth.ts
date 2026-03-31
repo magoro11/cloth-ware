@@ -7,11 +7,19 @@ import { compare } from "bcryptjs";
 import type { NextAuthConfig } from "next-auth";
 import { prisma } from "@/lib/prisma";
 
+const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+const authUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const isGoogleAuthConfigured = Boolean(googleClientId && googleClientSecret);
 
+if (process.env.NODE_ENV === "production" && !authSecret) {
+  console.error("Auth configuration error: set AUTH_SECRET or NEXTAUTH_SECRET in the runtime environment.");
+}
+
 const config: NextAuthConfig = {
+  secret: authSecret,
+  basePath: "/api/auth",
   session: { strategy: "jwt" },
   pages: {
     signIn: "/auth/signin",
@@ -84,6 +92,11 @@ const config: NextAuthConfig = {
     },
   },
 };
+
+if (authUrl) {
+  process.env.AUTH_URL ??= authUrl;
+  process.env.NEXTAUTH_URL ??= authUrl;
+}
 
 if (isGoogleAuthConfigured) {
   config.adapter = PrismaAdapter(prisma);
