@@ -1,0 +1,113 @@
+.card {
+  margin-inline: auto;
+  max-width: 28rem;
+  border-radius: 1rem;
+  border: 1px solid rgb(0 0 0 / 10%);
+  background: rgb(255 255 255 / 80%);
+  padding: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 10%), 0 8px 10px -6px rgb(0 0 0 / 10%);
+}
+
+.title {
+  font-family: var(--font-display), serif;
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+}
+
+.subtitle {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  opacity: 0.7;
+}
+
+.welcomeNote {
+  margin-top: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(from var(--accent) r g b / 20%);
+  background: rgb(from var(--accent) r g b / 8%);
+  padding: 0.75rem 1rem;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+.form {
+  margin-top: 1.25rem;
+}
+
+.fieldStack > * + * {
+  margin-top: 0.75rem;
+}
+
+.field {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(0 0 0 / 15%);
+  background: transparent;
+  padding: 0.625rem;
+}
+
+.field::placeholder {
+  color: inherit;
+  opacity: 0.6;
+}
+
+.primaryButton {
+  width: 100%;
+  border-radius: 0.5rem;
+  background: #000;
+  padding: 0.625rem 1rem;
+  color: #fff;
+}
+
+.primaryButton:disabled {
+  opacity: 0.5;
+}
+
+.googleButton {
+  margin-top: 0.75rem;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(0 0 0 / 20%);
+  padding: 0.625rem 1rem;
+  transition: background-color 150ms ease;
+}
+
+.googleButton:hover {
+  background: rgb(0 0 0 / 5%);
+}
+
+.error {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: #dc2626;
+}
+
+.switchButton {
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  opacity: 0.75;
+}
+
+:global(.dark) .card {
+  border-color: rgb(255 255 255 / 10%);
+  background: rgb(23 26 36 / 90%);
+}
+
+:global(.dark) .field {
+  border-color: rgb(255 255 255 / 15%);
+}
+
+:global(.dark) .primaryButton {
+  background: #fff;
+  color: #000;
+}
+
+:global(.dark) .googleButton {
+  border-color: rgb(255 255 255 / 20%);
+}
+
+:global(.dark) .googleButton:hover {
+  background: rgb(255 255 255 / 10%);
+}
