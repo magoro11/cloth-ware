@@ -57,7 +57,9 @@ OPENAI_API_KEY=""
 
 If you use Vercel Postgres, the app can also fall back to Vercel-provided variables such as `POSTGRES_PRISMA_URL`, `POSTGRES_URL`, and `POSTGRES_URL_NON_POOLING` when `DATABASE_URL` is not set manually.
 
-For authentication, either `AUTH_SECRET`/`AUTH_URL` or `NEXTAUTH_SECRET`/`NEXTAUTH_URL` can be used at runtime.
+For authentication, either `AUTH_SECRET`/`AUTH_URL` or `NEXTAUTH_SECRET`/`NEXTAUTH_URL` can be used at runtime. If you define both secret variables, they must be identical.
+
+If you ever change the auth secret, existing JWT session cookies can no longer be decrypted. Sign out and clear the browser cookies for the app before signing in again.
 
 3. Push database and seed
 
