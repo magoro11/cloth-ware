@@ -1,7 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useToast } from "@/components/toast-provider";
+import { createClient as createSupabaseClient } from "@/utils/supabase/client";
 
 type Contact = {
   id: string;
@@ -17,12 +19,22 @@ type Message = {
   createdAt: string;
 };
 
+type RealtimePayload = {
+  message?: Message;
+};
+
+function getConversationChannelName(userA: string, userB: string) {
+  return ["messages", userA, userB].sort().join(":");
+}
+
 export function MessageCenter({ currentUserId, contacts }: { currentUserId: string; contacts: Contact[] }) {
   const { pushToast } = useToast();
   const [activeId, setActiveId] = useState<string>(contacts[0]?.id || "");
   const [messages, setMessages] = useState<Message[]>([]);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [realtimeEnabled, setRealtimeEnabled] = useState(false);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const activeContact = useMemo(() => contacts.find((contact) => contact.id === activeId), [contacts, activeId]);
 
@@ -30,6 +42,8 @@ export function MessageCenter({ currentUserId, contacts }: { currentUserId: stri
     if (!activeId) return;
 
     let mounted = true;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
     async function loadMessages() {
       const response = await fetch(`/api/messages?recipientId=${activeId}`);
       const payload = await response.json();
@@ -39,12 +53,40 @@ export function MessageCenter({ currentUserId, contacts }: { currentUserId: stri
     }
 
     void loadMessages();
-    const interval = setInterval(loadMessages, 2500);
+
+    try {
+      const supabase = createSupabaseClient();
+      const channel = supabase
+        .channel(getConversationChannelName(currentUserId, activeId))
+        .on("broadcast", { event: "message:created" }, ({ payload }: { payload: RealtimePayload }) => {
+          const message = payload.message;
+          if (!message || !mounted) return;
+
+          setMessages((prev) => (prev.some((entry) => entry.id === message.id) ? prev : [...prev, message]));
+        })
+        .subscribe((status) => {
+          if (!mounted) return;
+          setRealtimeEnabled(status === "SUBSCRIBED");
+        });
+
+      channelRef.current = channel;
+    } catch {
+      setRealtimeEnabled(false);
+      intervalId = setInterval(() => {
+        void loadMessages();
+      }, 2500);
+    }
+
     return () => {
       mounted = false;
-      clearInterval(interval);
+      if (intervalId) clearInterval(intervalId);
+      if (channelRef.current) {
+        void channelRef.current.unsubscribe();
+        channelRef.current = null;
+      }
+      setRealtimeEnabled(false);
     };
-  }, [activeId]);
+  }, [activeId, currentUserId]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,7 +106,15 @@ export function MessageCenter({ currentUserId, contacts }: { currentUserId: stri
     }
 
     setContent("");
-    setMessages((prev) => [...prev, payload.message]);
+    setMessages((prev) => (prev.some((message) => message.id === payload.message.id) ? prev : [...prev, payload.message]));
+
+    if (channelRef.current) {
+      await channelRef.current.send({
+        type: "broadcast",
+        event: "message:created",
+        payload: { message: payload.message },
+      });
+    }
   }
 
   return (
@@ -93,6 +143,7 @@ export function MessageCenter({ currentUserId, contacts }: { currentUserId: stri
       <section className="rounded-2xl border border-black/10 p-4 dark:border-white/10">
         <div className="border-b border-black/10 pb-3 dark:border-white/10">
           <p className="font-semibold">{activeContact?.label || "Select a conversation"}</p>
+          <p className="mt-1 text-xs opacity-60">{realtimeEnabled ? "Live updates connected" : "Realtime unavailable, using refresh fallback"}</p>
         </div>
         <div className="mt-3 h-[340px] space-y-2 overflow-y-auto rounded-xl bg-black/[0.03] p-3 dark:bg-white/[0.03]">
           {messages.length === 0 ? <p className="text-sm opacity-65">No messages yet.</p> : null}

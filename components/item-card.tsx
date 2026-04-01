@@ -6,6 +6,7 @@ import { Heart } from "lucide-react";
 import { useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/components/toast-provider";
+import { AddToCartButton } from "@/components/add-to-cart-button";
 
 type ItemCardProps = {
   item: {
@@ -21,6 +22,7 @@ type ItemCardProps = {
     owner?: { role?: string };
     reviews?: { rating: number }[];
     isWishlisted?: boolean;
+    isInCart?: boolean;
     images: { url: string }[];
   };
 };
@@ -105,6 +107,11 @@ export function ItemCard({ item }: ItemCardProps) {
           <span className="font-semibold">{formatCurrency(item.rentalPricePerDay)}</span>/day
           {item.sellingPrice ? <span className="ml-2 opacity-80">Buy {formatCurrency(item.sellingPrice)}</span> : null}
         </p>
+        {item.sellingPrice ? (
+          <div className="pt-2">
+            <AddToCartButton itemId={item.id} inCart={item.isInCart} className="w-full rounded-lg border border-black/15 px-3 py-2 text-sm hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10" />
+          </div>
+        ) : null}
       </div>
     </Link>
   );

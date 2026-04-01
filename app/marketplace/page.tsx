@@ -57,6 +57,7 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
   let items: ItemWithRelations[] = [];
   let total = 0;
   let wishlistedIds = new Set<string>();
+  let cartItemIds = new Set<string>();
   let dbError = false;
   let dbErrorMessage = "Database is currently unavailable.";
 
@@ -116,6 +117,18 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
     items = itemRows;
     total = count;
     wishlistedIds = new Set(wishlist.map((entry) => entry.itemId));
+
+    if (session?.user) {
+      try {
+        const cartItems = await prisma.cartItem.findMany({
+          where: { userId: session.user.id },
+          select: { itemId: true },
+        });
+        cartItemIds = new Set(cartItems.map((entry) => entry.itemId));
+      } catch (error) {
+        logDatabaseIssue("MarketplacePage cart query failed", error);
+      }
+    }
   } catch (error) {
     dbError = isDatabaseUnavailable(error);
     dbErrorMessage = databaseErrorMessage(error);
@@ -190,6 +203,7 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
             item={{
               ...item,
               isWishlisted: wishlistedIds.has(item.id),
+              isInCart: cartItemIds.has(item.id),
             }}
           />
         ))}

@@ -9,7 +9,7 @@ function getErrorMessage(error: unknown): string {
   return e.message || "";
 }
 
-export function databaseIssue(error: unknown): "missing_database_url" | "database_unreachable" | null {
+export function databaseIssue(error: unknown): "missing_database_url" | "database_unreachable" | "missing_table" | null {
   const e = (error || {}) as MaybeError;
   const message = getErrorMessage(error);
 
@@ -28,6 +28,14 @@ export function databaseIssue(error: unknown): "missing_database_url" | "databas
     return "database_unreachable";
   }
 
+  if (
+    e.code === "P2021" ||
+    message.includes("does not exist in the current database") ||
+    message.includes("The table `public.")
+  ) {
+    return "missing_table";
+  }
+
   return null;
 }
 
@@ -44,6 +52,10 @@ export function databaseErrorMessage(error: unknown): string {
 
   if (issue === "database_unreachable") {
     return "The database is configured but could not be reached from the app.";
+  }
+
+  if (issue === "missing_table") {
+    return "The app schema has changed, but the database has not been updated yet.";
   }
 
   return "Database is currently unavailable.";

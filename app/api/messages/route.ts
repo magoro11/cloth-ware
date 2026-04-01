@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/access";
-import { getMessageStore } from "@/lib/message-store";
+import { prisma } from "@/lib/prisma";
 
 const schema = z.object({
   recipientId: z.string().min(2),
@@ -17,11 +17,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ messages: [] });
     }
 
-    const messages = getMessageStore().filter(
-      (message) =>
-        (message.senderId === user.id && message.recipientId === recipientId) ||
-        (message.senderId === recipientId && message.recipientId === user.id),
-    );
+    const messages = await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: user.id, recipientId },
+          { senderId: recipientId, recipientId: user.id },
+        ],
+      },
+      orderBy: { createdAt: "asc" },
+    });
 
     return NextResponse.json({ messages });
   } catch (error) {
@@ -34,15 +38,14 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser();
     const payload = schema.parse(await request.json());
-    const message = {
-      id: crypto.randomUUID(),
-      senderId: user.id,
-      recipientId: payload.recipientId,
-      content: payload.content,
-      createdAt: new Date().toISOString(),
-    };
+    const message = await prisma.message.create({
+      data: {
+        senderId: user.id,
+        recipientId: payload.recipientId,
+        content: payload.content,
+      },
+    });
 
-    getMessageStore().push(message);
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to send message";

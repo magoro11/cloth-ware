@@ -4,6 +4,7 @@ import Link from "next/link";
 import { LogOut, UserRound } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CartLink } from "@/components/cart-link";
 import { APP_NAME } from "@/lib/constants";
 
 export function SiteHeader() {
@@ -27,6 +28,7 @@ export function SiteHeader() {
           <Link href="/messages" className="hover:opacity-70">
             Messages
           </Link>
+          <CartLink />
           {data?.user?.role === "ADMIN" ? (
             <Link href="/dashboard/admin" className="hover:opacity-70">
               Admin

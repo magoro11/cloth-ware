@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { formatCurrency } from "@/lib/utils";
 import { RentalForm } from "@/components/rental-form";
 import { ItemCard } from "@/components/item-card";
+import { AddToCartButton } from "@/components/add-to-cart-button";
 import { databaseErrorMessage, isDatabaseUnavailable, logDatabaseIssue } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,7 @@ export default async function ItemDetailsPage(props: { params: Params }) {
   const { id } = await props.params;
   let item: ItemDetails | null = null;
   let similarItems: SimilarItem[] = [];
+  let inCart = false;
   let dbError = false;
   let dbErrorMessage = "Database is currently unavailable.";
 
@@ -57,6 +59,24 @@ export default async function ItemDetailsPage(props: { params: Params }) {
         orderBy: { createdAt: "desc" },
         take: 4,
       });
+
+      if (session?.user) {
+        try {
+          inCart = Boolean(
+            await prisma.cartItem.findUnique({
+              where: {
+                userId_itemId: {
+                  userId: session.user.id,
+                  itemId: item.id,
+                },
+              },
+              select: { id: true },
+            }),
+          );
+        } catch (error) {
+          logDatabaseIssue("ItemDetailsPage cart query failed", error);
+        }
+      }
     }
   } catch (error) {
     dbError = isDatabaseUnavailable(error);
@@ -129,6 +149,18 @@ export default async function ItemDetailsPage(props: { params: Params }) {
             {item.sellingPrice ? <p>Buy now: {formatCurrency(item.sellingPrice)}</p> : null}
             <p>Verified seller: {item.owner.role === "LENDER" || item.owner.role === "ADMIN" ? "Yes" : "Pending"}</p>
           </div>
+
+          {item.sellingPrice ? (
+            <section className="rounded-2xl border border-black/10 p-5 dark:border-white/10">
+              <h3 className="font-semibold">Buy this item</h3>
+              <p className="mt-2 text-sm opacity-75">
+                Add it to your cart and keep shopping. Purchase checkout can be layered in next.
+              </p>
+              <div className="mt-4">
+                <AddToCartButton itemId={item.id} inCart={inCart} className="w-full rounded-lg bg-black px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60 dark:bg-white dark:text-black" />
+              </div>
+            </section>
+          ) : null}
 
           <RentalForm itemId={item.id} />
 
