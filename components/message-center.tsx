@@ -27,9 +27,17 @@ function getConversationChannelName(userA: string, userB: string) {
   return ["messages", userA, userB].sort().join(":");
 }
 
-export function MessageCenter({ currentUserId, contacts }: { currentUserId: string; contacts: Contact[] }) {
+export function MessageCenter({
+  currentUserId,
+  contacts,
+  initialActiveId,
+}: {
+  currentUserId: string;
+  contacts: Contact[];
+  initialActiveId?: string;
+}) {
   const { pushToast } = useToast();
-  const [activeId, setActiveId] = useState<string>(contacts[0]?.id || "");
+  const [activeId, setActiveId] = useState<string>(initialActiveId || contacts[0]?.id || "");
   const [messages, setMessages] = useState<Message[]>([]);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
@@ -37,6 +45,15 @@ export function MessageCenter({ currentUserId, contacts }: { currentUserId: stri
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const activeContact = useMemo(() => contacts.find((contact) => contact.id === activeId), [contacts, activeId]);
+
+  useEffect(() => {
+    if (!contacts.length) return;
+    if (initialActiveId && contacts.some((contact) => contact.id === initialActiveId)) {
+      setActiveId(initialActiveId);
+      return;
+    }
+    if (!activeId) setActiveId(contacts[0].id);
+  }, [activeId, contacts, initialActiveId]);
 
   useEffect(() => {
     if (!activeId) return;

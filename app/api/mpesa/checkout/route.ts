@@ -4,11 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/access";
 import { errorStatus } from "@/lib/errors";
 import { initiateMpesaStk, MpesaStkError } from "@/lib/mpesa";
+import { isPrismaUnknownFieldError } from "@/lib/prisma-compat";
 
 const schema = z.object({
   bookingId: z.string(),
   phone: z.string(), // e.g. 2547XXXXXXXX
 });
+
+const prismaAny = prisma as any;
 
 export async function POST(request: Request) {
   try {
@@ -35,6 +38,28 @@ export async function POST(request: Request) {
       accountReference: booking.id,
       description: `${booking.item.brand} ${booking.item.title} rental`,
     });
+
+    try {
+      await prismaAny.booking.update({
+        where: { id: booking.id },
+        data: {
+          paymentMethod: "MPESA",
+          mpesaPhone: phone,
+          mpesaCheckoutRequestId: mpesaResponse.CheckoutRequestID || null,
+          mpesaMerchantRequestId: mpesaResponse.MerchantRequestID || null,
+          mpesaResultDesc: mpesaResponse.ResponseDescription || null,
+        },
+      });
+    } catch (error) {
+      if (!isPrismaUnknownFieldError(error)) throw error;
+      await prismaAny.booking.update({
+        where: { id: booking.id },
+        data: {
+          paymentMethod: "MPESA",
+          mpesaPhone: phone,
+        },
+      });
+    }
 
     return NextResponse.json({ mpesa: mpesaResponse });
   } catch (error) {

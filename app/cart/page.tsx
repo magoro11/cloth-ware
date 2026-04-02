@@ -48,7 +48,7 @@ export default async function CartPage() {
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
       <h1 className="font-serif text-4xl">Cart</h1>
-      <p className="mt-2 text-sm opacity-70">Collect buy-now pieces here before we wire in purchase checkout.</p>
+      <p className="mt-2 text-sm opacity-70">Review your buy-now pieces and head straight into secure Stripe checkout.</p>
       {dbError ? (
         <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
           {dbErrorMessage} Run <code>npm run db:push</code> to create the new cart tables.

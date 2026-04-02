@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldCheck, Sparkles, Truck, Wallet } from "lucide-react";
+import { Search, ShieldCheck, Sparkles, Truck, Wallet } from "lucide-react";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { APP_NAME, APP_TAGLINE, CATEGORIES, FEATURED_BRANDS } from "@/lib/constants";
@@ -50,6 +50,34 @@ export default async function Home() {
           Resell with confidence.
         </h1>
         <p className="relative mt-4 max-w-2xl text-sm opacity-75 md:text-base">{APP_TAGLINE}</p>
+        <form action="/marketplace" className="relative mt-8 max-w-4xl rounded-3xl border border-black/10 bg-white/90 p-3 shadow-lg dark:border-white/10 dark:bg-[#111522]/90">
+          <div className="grid gap-3 md:grid-cols-[1.6fr,0.9fr,0.9fr,auto]">
+            <label className="flex items-center gap-3 rounded-2xl border border-black/10 px-4 py-3 dark:border-white/10">
+              <Search className="size-4 opacity-60" />
+              <input
+                name="q"
+                placeholder="Search dresses, suits, party looks, wedding styles..."
+                className="w-full bg-transparent text-sm outline-none"
+              />
+            </label>
+            <select name="category" className="rounded-2xl border border-black/10 bg-transparent px-4 py-3 text-sm dark:border-white/10">
+              <option value="">All categories</option>
+              {CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+            <select name="sort" defaultValue="latest" className="rounded-2xl border border-black/10 bg-transparent px-4 py-3 text-sm dark:border-white/10">
+              <option value="latest">New arrivals</option>
+              <option value="popularity">Popularity</option>
+              <option value="price_asc">Price: Low to high</option>
+            </select>
+            <button className="rounded-2xl bg-black px-6 py-3 text-sm text-white dark:bg-white dark:text-black">
+              Search
+            </button>
+          </div>
+        </form>
         <div className="relative mt-8 flex flex-wrap gap-3">
           <Link href="/marketplace" className="rounded-full bg-black px-6 py-2.5 text-sm text-white dark:bg-white dark:text-black">
             Browse Marketplace
@@ -73,7 +101,7 @@ export default async function Home() {
 
       <section className="mt-12">
         <div className="flex items-center justify-between">
-          <h2 className="font-serif text-3xl">Trending Event Outfits</h2>
+          <h2 className="font-serif text-3xl">Featured outfits</h2>
           <Link href="/marketplace" className="text-sm opacity-70 hover:opacity-100">
             View all
           </Link>
@@ -86,6 +114,31 @@ export default async function Home() {
               className="rounded-full border border-black/15 px-4 py-1.5 text-xs uppercase tracking-wide dark:border-white/20"
             >
               {category}
+            </Link>
+          ))}
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {featuredItems.map((item) => (
+            <ItemCard key={item.id} item={item} />
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-12">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif text-3xl">Trending items</h2>
+          <Link href="/marketplace?sort=popularity" className="text-sm opacity-70 hover:opacity-100">
+            Explore trends
+          </Link>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {["Women", "Men", "Events", "Casual", "Office", "Wedding", "Party"].map((collection) => (
+            <Link
+              key={collection}
+              href={`/marketplace?q=${encodeURIComponent(collection)}`}
+              className="rounded-full border border-black/15 px-4 py-1.5 text-xs uppercase tracking-wide dark:border-white/20"
+            >
+              {collection}
             </Link>
           ))}
         </div>

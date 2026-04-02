@@ -4,6 +4,9 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency } from "@/lib/utils";
 import { approveListingAction } from "@/app/actions/admin-actions";
+import { AdminUserActions } from "@/components/admin-user-actions";
+
+const prismaAny = prisma as any;
 
 export const dynamic = "force-dynamic";
 
@@ -12,26 +15,34 @@ export default async function AdminDashboardPage() {
   if (!session?.user) redirect("/auth/signin");
   if (session.user.role !== "ADMIN") redirect("/dashboard");
 
-  const [pendingListings, users, disputes, revenue] = await Promise.all([
-    prisma.item.findMany({
+  const [pendingListings, users, disputes, revenue, recentOrders] = await Promise.all([
+    prismaAny.item.findMany({
       where: { featured: false },
       include: { owner: { select: { name: true, email: true } } },
       orderBy: { createdAt: "desc" },
       take: 12,
     }),
-    prisma.user.findMany({
+    prismaAny.user.findMany({
       orderBy: { createdAt: "desc" },
       take: 12,
     }),
-    prisma.booking.findMany({
+    prismaAny.booking.findMany({
       where: { status: "LATE" },
       include: { item: { select: { title: true, brand: true } }, customer: { select: { email: true } } },
       orderBy: { updatedAt: "desc" },
       take: 12,
     }),
-    prisma.transaction.aggregate({
+    prismaAny.transaction.aggregate({
       _sum: { amount: true },
       where: { type: "COMMISSION" },
+    }),
+    prismaAny.booking.findMany({
+      include: {
+        item: { select: { title: true, brand: true } },
+        customer: { select: { email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 12,
     }),
   ]);
 
@@ -64,7 +75,7 @@ export default async function AdminDashboardPage() {
           <h2 className="font-serif text-2xl">Approve listings</h2>
           <div className="mt-3 space-y-2 text-sm">
             {pendingListings.length === 0 ? <p className="opacity-70">No listings pending.</p> : null}
-            {pendingListings.map((listing) => (
+            {pendingListings.map((listing: any) => (
               <article key={listing.id} className="rounded-xl border border-black/10 p-3 dark:border-white/10">
                 <p className="font-medium">
                   {listing.brand} {listing.title}
@@ -80,10 +91,47 @@ export default async function AdminDashboardPage() {
         </div>
 
         <div className="rounded-2xl border border-black/10 p-5 dark:border-white/10">
-          <h2 className="font-serif text-2xl">Flag suspicious activity</h2>
+          <h2 className="font-serif text-2xl">User management</h2>
+          <div className="mt-3 space-y-2 text-sm">
+            {users.length === 0 ? <p className="opacity-70">No users found.</p> : null}
+            {users.map((user: any) => (
+              <article key={user.id} className="rounded-xl border border-black/10 p-3 dark:border-white/10">
+                <p className="font-medium">{user.name || user.email}</p>
+                <p className="opacity-75">
+                  {user.email} | {user.role} | {user.isBanned ? "Banned" : "Active"}
+                </p>
+                <AdminUserActions userId={user.id} isBanned={Boolean(user.isBanned)} role={user.role} />
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-8 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-black/10 p-5 dark:border-white/10">
+          <h2 className="font-serif text-2xl">Orders</h2>
+          <div className="mt-3 space-y-2 text-sm">
+            {recentOrders.map((booking: any) => (
+              <article key={booking.id} className="rounded-xl border border-black/10 p-3 dark:border-white/10">
+                <p className="font-medium">
+                  {booking.item.brand} {booking.item.title}
+                </p>
+                <p className="opacity-75">
+                  {booking.customer.email} | {booking.status}
+                </p>
+                <p className="opacity-75">
+                  {booking.fulfillmentMethod || "Fulfillment pending"} | {booking.paymentMethod || "Payment pending"}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-black/10 p-5 dark:border-white/10">
+          <h2 className="font-serif text-2xl">Payments & disputes</h2>
           <div className="mt-3 space-y-2 text-sm">
             {disputes.length === 0 ? <p className="opacity-70">No high-risk cases found.</p> : null}
-            {disputes.map((booking) => (
+            {disputes.map((booking: any) => (
               <article key={booking.id} className="rounded-xl border border-black/10 p-3 dark:border-white/10">
                 <p className="font-medium">
                   {booking.item.brand} {booking.item.title}

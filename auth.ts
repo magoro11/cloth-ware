@@ -7,6 +7,8 @@ import { compare } from "bcryptjs";
 import type { NextAuthConfig } from "next-auth";
 import { prisma } from "@/lib/prisma";
 
+const prismaAny = prisma as any;
+
 const envAuthSecret = process.env.AUTH_SECRET;
 const envNextAuthSecret = process.env.NEXTAUTH_SECRET;
 const authSecret = envAuthSecret ?? envNextAuthSecret;
@@ -60,14 +62,14 @@ const config: NextAuthConfig = {
         const normalizedEmail = input.data.email.trim().toLowerCase();
         let user;
         try {
-          user = await prisma.user.findFirst({
+          user = await prismaAny.user.findFirst({
             where: { email: { equals: normalizedEmail, mode: "insensitive" } },
           });
         } catch (error) {
           console.error("Credentials lookup failed", error);
           return null;
         }
-        if (!user?.passwordHash) return null;
+        if (!user?.passwordHash || user.isBanned) return null;
 
         const isValid = await compare(input.data.password, user.passwordHash);
         if (!isValid) return null;

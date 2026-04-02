@@ -2,12 +2,16 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { ListItemForm } from "@/components/list-item-form";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function ListItemPage() {
+type SearchParams = Promise<{ id?: string }>;
+
+export default async function ListItemPage(props: { searchParams: SearchParams }) {
   const session = await auth();
   if (!session?.user) redirect("/auth/signin");
+  const searchParams = await props.searchParams;
 
   if (!["LENDER", "ADMIN"].includes(session.user.role)) {
     return (
@@ -25,9 +29,22 @@ export default async function ListItemPage() {
     );
   }
 
+  const item =
+    searchParams.id
+      ? await prisma.item.findFirst({
+          where: {
+            id: searchParams.id,
+            ownerId: session.user.role === "ADMIN" ? undefined : session.user.id,
+          },
+          include: {
+            images: { orderBy: { sortOrder: "asc" } },
+          },
+        })
+      : null;
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 md:px-8">
-      <ListItemForm />
+      <ListItemForm initialItem={item ?? undefined} />
     </main>
   );
 }

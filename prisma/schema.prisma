@@ -13,10 +13,18 @@ model User {
   id                String        @id @default(cuid())
   name              String?
   email             String        @unique
+  phone             String?
+  addressLine1      String?
+  addressLine2      String?
+  city              String?
+  country           String?
+  preferredPaymentMethod PaymentMethod?
+  preferredFulfillmentMethod FulfillmentMethod?
   emailVerified     DateTime?
   image             String?
   passwordHash      String?
   role              UserRole      @default(CUSTOMER)
+  isBanned          Boolean       @default(false)
   stripeCustomerId  String?
   stripeConnectedId String?
   createdAt         DateTime      @default(now())
@@ -25,6 +33,7 @@ model User {
   bookings          Booking[]     @relation("BookingCustomer")
   ownedItems        Item[]        @relation("ItemOwner")
   payouts           Payout[]      @relation("OwnerPayouts")
+  purchases         Purchase[]    @relation("PurchaseBuyer")
   receivedMessages  Message[]     @relation("MessageRecipient")
   reviewsWritten    Review[]      @relation("ReviewAuthor")
   sentMessages      Message[]     @relation("MessageSender")
@@ -46,12 +55,16 @@ model Item {
   sellingPrice       Int?
   securityDeposit    Int
   featured           Boolean             @default(false)
+  isAvailable        Boolean             @default(true)
+  location           String?
+  occasion           String?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   availabilityBlocks AvailabilityBlock[]
   bookings           Booking[]
   cartItems          CartItem[]
   owner              User                @relation("ItemOwner", fields: [ownerId], references: [id])
+  purchases          Purchase[]
   images             ItemImage[]
   repairs            RepairLog[]
   reviews            Review[]
@@ -90,6 +103,16 @@ model Booking {
   commissionAmount  Int
   ownerPayoutAmount Int
   status            BookingStatus @default(PENDING)
+  fulfillmentMethod FulfillmentMethod?
+  fulfillmentAddress String?
+  paymentMethod     PaymentMethod?
+  mpesaPhone        String?
+  mpesaCheckoutRequestId String?
+  mpesaMerchantRequestId String?
+  mpesaReceiptNumber String?
+  mpesaResultCode   Int?
+  mpesaResultDesc   String?
+  paidAt            DateTime?
   returnDate        DateTime?
   damageReported    Boolean       @default(false)
   createdAt         DateTime      @default(now())
@@ -163,6 +186,25 @@ model CartItem {
 
   @@unique([userId, itemId])
   @@index([userId, createdAt])
+}
+
+model Purchase {
+  id                    String         @id @default(cuid())
+  itemId                String
+  buyerId               String
+  amount                Int
+  commissionAmount      Int
+  stripeCheckoutSessionId String?
+  stripePaymentIntent   String?
+  status                PurchaseStatus @default(PAID)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  buyer                 User           @relation("PurchaseBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  item                  Item           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([buyerId, createdAt])
+  @@index([itemId])
+  @@index([stripeCheckoutSessionId])
 }
 
 model Message {
@@ -257,4 +299,21 @@ enum PayoutStatus {
   PENDING
   RELEASED
   FAILED
+}
+
+enum PurchaseStatus {
+  PAID
+  FULFILLED
+  CANCELED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  MPESA
+}
+
+enum FulfillmentMethod {
+  DELIVERY
+  PICKUP
 }

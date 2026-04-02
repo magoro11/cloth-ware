@@ -5,11 +5,18 @@ import { prisma } from "@/lib/prisma";
 import { calculateRentalQuote, overlaps } from "@/lib/rental";
 import { requireUser } from "@/lib/access";
 import { sendEmailNotification } from "@/lib/notifications";
+import { isPrismaUnknownFieldError } from "@/lib/prisma-compat";
+
+const prismaAny = prisma as any;
 
 const createBookingSchema = z.object({
   itemId: z.string(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
+  fulfillmentMethod: z.enum(["DELIVERY", "PICKUP"]).optional(),
+  fulfillmentAddress: z.string().max(250).optional().nullable(),
+  paymentMethod: z.enum(["CARD", "MPESA"]).optional(),
+  mpesaPhone: z.string().max(20).optional().nullable(),
 });
 
 export async function POST(request: Request) {
@@ -52,21 +59,45 @@ export async function POST(request: Request) {
       endDate: body.endDate,
     });
 
-    const booking = await prisma.booking.create({
-      data: {
-        itemId: item.id,
-        customerId: user.id,
-        startDate: body.startDate,
-        endDate: body.endDate,
-        days: quote.days,
-        rentalAmount: quote.rentalAmount,
-        securityDeposit: quote.securityDeposit,
-        commissionAmount: quote.commissionAmount,
-        ownerPayoutAmount: quote.ownerPayoutAmount,
-        status: BookingStatus.PENDING,
-      },
-      include: { item: { include: { owner: true } } },
-    });
+    let booking;
+    try {
+      booking = await prismaAny.booking.create({
+        data: {
+          itemId: item.id,
+          customerId: user.id,
+          startDate: body.startDate,
+          endDate: body.endDate,
+          days: quote.days,
+          rentalAmount: quote.rentalAmount,
+          securityDeposit: quote.securityDeposit,
+          commissionAmount: quote.commissionAmount,
+          ownerPayoutAmount: quote.ownerPayoutAmount,
+          status: BookingStatus.PENDING,
+          fulfillmentMethod: body.fulfillmentMethod,
+          fulfillmentAddress: body.fulfillmentAddress || undefined,
+          paymentMethod: body.paymentMethod,
+          mpesaPhone: body.mpesaPhone || undefined,
+        },
+        include: { item: { include: { owner: true } } },
+      });
+    } catch (error) {
+      if (!isPrismaUnknownFieldError(error)) throw error;
+      booking = await prismaAny.booking.create({
+        data: {
+          itemId: item.id,
+          customerId: user.id,
+          startDate: body.startDate,
+          endDate: body.endDate,
+          days: quote.days,
+          rentalAmount: quote.rentalAmount,
+          securityDeposit: quote.securityDeposit,
+          commissionAmount: quote.commissionAmount,
+          ownerPayoutAmount: quote.ownerPayoutAmount,
+          status: BookingStatus.PENDING,
+        },
+        include: { item: { include: { owner: true } } },
+      });
+    }
 
     if (booking.item.owner.email) {
       await sendEmailNotification({

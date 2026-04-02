@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
@@ -7,9 +8,14 @@ import { formatCurrency } from "@/lib/utils";
 import { RentalForm } from "@/components/rental-form";
 import { ItemCard } from "@/components/item-card";
 import { AddToCartButton } from "@/components/add-to-cart-button";
+import { PurchaseCheckoutButton } from "@/components/purchase-checkout-button";
+import { WishlistButton } from "@/components/wishlist-button";
+import { AvailabilityCalendar } from "@/components/availability-calendar";
 import { databaseErrorMessage, isDatabaseUnavailable, logDatabaseIssue } from "@/lib/errors";
+import { isPrismaUnknownFieldError } from "@/lib/prisma-compat";
 
 export const dynamic = "force-dynamic";
+const prismaAny = prisma as any;
 
 type ItemDetails = Prisma.ItemGetPayload<{
   include: {
@@ -18,6 +24,10 @@ type ItemDetails = Prisma.ItemGetPayload<{
     repairs: { orderBy: { createdAt: "desc" } };
     reviews: { orderBy: { createdAt: "desc" } };
     availabilityBlocks: true;
+    bookings: {
+      where: { status: { in: ["PENDING", "CONFIRMED", "ACTIVE", "LATE"] } };
+      select: { startDate: true; endDate: true };
+    };
   };
 }>;
 
@@ -33,6 +43,16 @@ export default async function ItemDetailsPage(props: { params: Params }) {
   let item: ItemDetails | null = null;
   let similarItems: SimilarItem[] = [];
   let inCart = false;
+  let isWishlisted = false;
+  let profileDefaults: {
+    preferredPaymentMethod?: "CARD" | "MPESA" | null;
+    preferredFulfillmentMethod?: "DELIVERY" | "PICKUP" | null;
+    addressLine1?: string | null;
+    addressLine2?: string | null;
+    city?: string | null;
+    country?: string | null;
+    phone?: string | null;
+  } | null = null;
   let dbError = false;
   let dbErrorMessage = "Database is currently unavailable.";
 
@@ -45,6 +65,10 @@ export default async function ItemDetailsPage(props: { params: Params }) {
         repairs: { orderBy: { createdAt: "desc" } },
         reviews: { orderBy: { createdAt: "desc" } },
         availabilityBlocks: true,
+        bookings: {
+          where: { status: { in: ["PENDING", "CONFIRMED", "ACTIVE", "LATE"] } },
+          select: { startDate: true, endDate: true },
+        },
       },
     });
 
@@ -62,8 +86,8 @@ export default async function ItemDetailsPage(props: { params: Params }) {
 
       if (session?.user) {
         try {
-          inCart = Boolean(
-            await prisma.cartItem.findUnique({
+          const [cartEntry, wishlistEntry, profileEntry] = await Promise.all([
+            prisma.cartItem.findUnique({
               where: {
                 userId_itemId: {
                   userId: session.user.id,
@@ -72,7 +96,46 @@ export default async function ItemDetailsPage(props: { params: Params }) {
               },
               select: { id: true },
             }),
-          );
+            prisma.wishlist.findUnique({
+              where: {
+                userId_itemId: {
+                  userId: session.user.id,
+                  itemId: item.id,
+                },
+              },
+              select: { id: true },
+            }),
+            (async () => {
+              try {
+                return await prismaAny.user.findUnique({
+                  where: { id: session.user.id },
+                  select: {
+                    preferredPaymentMethod: true,
+                    preferredFulfillmentMethod: true,
+                    addressLine1: true,
+                    addressLine2: true,
+                    city: true,
+                    country: true,
+                    phone: true,
+                  },
+                });
+              } catch (error) {
+                if (!isPrismaUnknownFieldError(error)) throw error;
+                return {
+                  preferredPaymentMethod: null,
+                  preferredFulfillmentMethod: null,
+                  addressLine1: null,
+                  addressLine2: null,
+                  city: null,
+                  country: null,
+                  phone: null,
+                };
+              }
+            })(),
+          ]);
+          inCart = Boolean(cartEntry);
+          isWishlisted = Boolean(wishlistEntry);
+          profileDefaults = profileEntry;
         } catch (error) {
           logDatabaseIssue("ItemDetailsPage cart query failed", error);
         }
@@ -98,6 +161,10 @@ export default async function ItemDetailsPage(props: { params: Params }) {
   const avgRating = item.reviews.length
     ? (item.reviews.reduce((acc, review) => acc + review.rating, 0) / item.reviews.length).toFixed(1)
     : "New";
+  const blockedRanges = [
+    ...item.availabilityBlocks.map((block) => ({ startDate: block.startDate, endDate: block.endDate })),
+    ...item.bookings.map((booking) => ({ startDate: booking.startDate, endDate: booking.endDate })),
+  ];
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
@@ -154,15 +221,36 @@ export default async function ItemDetailsPage(props: { params: Params }) {
             <section className="rounded-2xl border border-black/10 p-5 dark:border-white/10">
               <h3 className="font-semibold">Buy this item</h3>
               <p className="mt-2 text-sm opacity-75">
-                Add it to your cart and keep shopping. Purchase checkout can be layered in next.
+                Buy instantly with Stripe Checkout or add it to your cart if you want to bundle a few pieces first.
               </p>
-              <div className="mt-4">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <PurchaseCheckoutButton itemIds={[item.id]} source="item" className="w-full">
+                  Buy now
+                </PurchaseCheckoutButton>
                 <AddToCartButton itemId={item.id} inCart={inCart} className="w-full rounded-lg bg-black px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60 dark:bg-white dark:text-black" />
               </div>
             </section>
           ) : null}
 
-          <RentalForm itemId={item.id} />
+          <section className="rounded-2xl border border-black/10 p-5 dark:border-white/10">
+            <h3 className="font-semibold">Quick actions</h3>
+            <p className="mt-2 text-sm opacity-75">
+              Save this piece, message the owner, or move straight into checkout when you are ready.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <WishlistButton itemId={item.id} initialWishlisted={isWishlisted} showLabel className="w-full justify-center rounded-lg" />
+              <Link
+                href={`/messages?contact=${item.owner.id}`}
+                className="inline-flex items-center justify-center rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+              >
+                Chat Owner
+              </Link>
+            </div>
+          </section>
+
+          <RentalForm itemId={item.id} defaults={profileDefaults ?? undefined} />
+
+          <AvailabilityCalendar blockedRanges={blockedRanges} />
 
           <section className="rounded-2xl border border-black/10 p-4 dark:border-white/10">
             <h2 className="font-semibold">Seller information</h2>

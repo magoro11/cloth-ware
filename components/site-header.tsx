@@ -28,6 +28,12 @@ export function SiteHeader() {
           <Link href="/messages" className="hover:opacity-70">
             Messages
           </Link>
+          <Link href="/wishlist" className="hover:opacity-70">
+            Wishlist
+          </Link>
+          <Link href="/profile" className="hover:opacity-70">
+            Profile
+          </Link>
           <CartLink />
           {data?.user?.role === "ADMIN" ? (
             <Link href="/dashboard/admin" className="hover:opacity-70">

@@ -1,9 +1,14 @@
 import { Prisma } from "@prisma/client";
+import Link from "next/link";
+import { Search } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { CATEGORIES, FEATURED_BRANDS } from "@/lib/constants";
+import { CATEGORIES, EVENT_TYPES, FEATURED_BRANDS } from "@/lib/constants";
 import { ItemCard } from "@/components/item-card";
 import { databaseErrorMessage, isDatabaseUnavailable, logDatabaseIssue } from "@/lib/errors";
+import { isPrismaUnknownFieldError } from "@/lib/prisma-compat";
+
+const prismaAny = prisma as any;
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +25,11 @@ type SearchParams = Promise<{
   size?: string;
   brand?: string;
   q?: string;
+  occasion?: string;
   minDaily?: string;
   maxDaily?: string;
   mode?: "rent" | "buy";
-  sort?: "latest" | "price_asc" | "price_desc";
+  sort?: "latest" | "price_asc" | "price_desc" | "popularity";
   start?: string;
   end?: string;
   page?: string;
@@ -49,10 +55,12 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
 
   const orderBy =
     searchParams.sort === "price_asc"
-      ? { rentalPricePerDay: "asc" as const }
+      ? ({ rentalPricePerDay: "asc" } as const)
       : searchParams.sort === "price_desc"
-        ? { rentalPricePerDay: "desc" as const }
-        : { createdAt: "desc" as const };
+        ? ({ rentalPricePerDay: "desc" } as const)
+        : searchParams.sort === "popularity"
+          ? ({ reviews: { _count: "desc" } } as const)
+          : ({ createdAt: "desc" } as const);
 
   let items: ItemWithRelations[] = [];
   let total = 0;
@@ -65,8 +73,9 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
   const endDate = searchParams.end ? new Date(searchParams.end) : null;
 
   try {
-    const where: Prisma.ItemWhereInput = {
+    const where: any = {
       featured: true,
+      isAvailable: true,
       category: searchParams.category || undefined,
       size: searchParams.size || undefined,
       brand: searchParams.brand || undefined,
@@ -84,6 +93,18 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
             { description: { contains: searchParams.q, mode: "insensitive" } },
           ]
         : undefined,
+      AND: searchParams.occasion
+        ? [
+            {
+              OR: [
+                { title: { contains: searchParams.occasion, mode: "insensitive" } },
+                { description: { contains: searchParams.occasion, mode: "insensitive" } },
+                { category: { contains: searchParams.occasion, mode: "insensitive" } },
+                { occasion: { contains: searchParams.occasion, mode: "insensitive" } },
+              ],
+            },
+          ]
+        : undefined,
       bookings:
         startDate && endDate
           ? {
@@ -96,23 +117,50 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
           : undefined,
     };
 
-    const [itemRows, count, wishlist] = await Promise.all([
-      prisma.item.findMany({
-        where,
-        include: {
-          images: true,
-          owner: { select: { role: true } },
-          reviews: true,
-        },
-        orderBy,
-        skip,
-        take: PAGE_SIZE,
-      }),
-      prisma.item.count({ where }),
-      session?.user
-        ? prisma.wishlist.findMany({ where: { userId: session.user.id }, select: { itemId: true } })
-        : Promise.resolve([]),
-    ]);
+    let itemRows;
+    let count;
+    let wishlist;
+    try {
+      [itemRows, count, wishlist] = await Promise.all([
+        prismaAny.item.findMany({
+          where,
+          include: {
+            images: true,
+            owner: { select: { role: true } },
+            reviews: true,
+          },
+          orderBy,
+          skip,
+          take: PAGE_SIZE,
+        }),
+        prismaAny.item.count({ where }),
+        session?.user
+          ? prisma.wishlist.findMany({ where: { userId: session.user.id }, select: { itemId: true } })
+          : Promise.resolve([]),
+      ]);
+    } catch (error) {
+      if (!isPrismaUnknownFieldError(error)) throw error;
+      const legacyWhere = { ...where };
+      delete legacyWhere.isAvailable;
+      delete legacyWhere.AND;
+      [itemRows, count, wishlist] = await Promise.all([
+        prismaAny.item.findMany({
+          where: legacyWhere,
+          include: {
+            images: true,
+            owner: { select: { role: true } },
+            reviews: true,
+          },
+          orderBy: searchParams.sort === "popularity" ? { createdAt: "desc" } : orderBy,
+          skip,
+          take: PAGE_SIZE,
+        }),
+        prismaAny.item.count({ where: legacyWhere }),
+        session?.user
+          ? prisma.wishlist.findMany({ where: { userId: session.user.id }, select: { itemId: true } })
+          : Promise.resolve([]),
+      ]);
+    }
 
     items = itemRows;
     total = count;
@@ -146,15 +194,30 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
       ) : null}
 
       <h1 className="font-serif text-4xl">Luxury Marketplace</h1>
-      <p className="mt-2 text-sm opacity-70">Filter, compare, and reserve premium fashion listings in seconds.</p>
+      <p className="mt-2 text-sm opacity-70">Search, explore, compare, and reserve premium looks in seconds.</p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {["Women", "Men", "Events", "Casual", "Office", "Wedding", "Party"].map((tag) => (
+          <Link
+            key={tag}
+            href={`/marketplace?q=${encodeURIComponent(tag)}`}
+            className="rounded-full border border-black/15 px-4 py-1.5 text-xs uppercase tracking-wide dark:border-white/20"
+          >
+            {tag}
+          </Link>
+        ))}
+      </div>
 
       <form className="mt-5 grid gap-3 rounded-2xl border border-black/10 p-4 dark:border-white/10 md:grid-cols-6">
-        <input
-          name="q"
-          defaultValue={searchParams.q}
-          placeholder="Search items"
-          className="rounded-lg border border-black/15 bg-transparent p-2.5 md:col-span-2"
-        />
+        <label className="flex items-center gap-3 rounded-lg border border-black/15 bg-transparent p-2.5 md:col-span-2">
+          <Search className="size-4 opacity-60" />
+          <input
+            name="q"
+            defaultValue={searchParams.q}
+            placeholder="Search by outfit, brand, mood, or event"
+            className="w-full bg-transparent outline-none"
+          />
+        </label>
 
         <select name="category" defaultValue={searchParams.category} className="rounded-lg border border-black/15 bg-transparent p-2.5">
           <option value="">All categories</option>
@@ -166,6 +229,15 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
         </select>
 
         <input name="size" defaultValue={searchParams.size} placeholder="Size" className="rounded-lg border border-black/15 bg-transparent p-2.5" />
+
+        <select name="occasion" defaultValue={searchParams.occasion} className="rounded-lg border border-black/15 bg-transparent p-2.5">
+          <option value="">Any occasion</option>
+          {EVENT_TYPES.map((occasion) => (
+            <option key={occasion} value={occasion}>
+              {occasion}
+            </option>
+          ))}
+        </select>
 
         <select name="brand" defaultValue={searchParams.brand} className="rounded-lg border border-black/15 bg-transparent p-2.5">
           <option value="">All brands</option>
@@ -188,7 +260,8 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
         <input name="end" type="date" defaultValue={searchParams.end} className="rounded-lg border border-black/15 bg-transparent p-2.5" />
 
         <select name="sort" defaultValue={searchParams.sort || "latest"} className="rounded-lg border border-black/15 bg-transparent p-2.5">
-          <option value="latest">Latest</option>
+          <option value="latest">New arrivals</option>
+          <option value="popularity">Popularity</option>
           <option value="price_asc">Price: Low to high</option>
           <option value="price_desc">Price: High to low</option>
         </select>

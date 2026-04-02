@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useToast } from "@/components/toast-provider";
+import { PurchaseCheckoutButton } from "@/components/purchase-checkout-button";
 import { formatCurrency } from "@/lib/utils";
 import { notifyCartChanged } from "@/components/add-to-cart-button";
 
@@ -28,6 +29,10 @@ export function CartList({ initialItems }: { initialItems: CartItem[] }) {
 
   const total = useMemo(
     () => items.reduce((sum, entry) => sum + (entry.item.sellingPrice ?? 0), 0),
+    [items],
+  );
+  const purchasableItemIds = useMemo(
+    () => items.filter((entry) => entry.item.sellingPrice).map((entry) => entry.itemId),
     [items],
   );
 
@@ -119,8 +124,16 @@ export function CartList({ initialItems }: { initialItems: CartItem[] }) {
           </div>
         </div>
         <p className="mt-4 text-xs opacity-65">
-          Purchase checkout is not wired yet, but your cart is persisted and ready for the next step.
+          Secure checkout runs through Stripe and removes sold pieces from all carts after payment.
         </p>
+        <PurchaseCheckoutButton
+          itemIds={purchasableItemIds}
+          source="cart"
+          disabled={purchasableItemIds.length === 0}
+          className="mt-4 w-full"
+        >
+          Checkout now
+        </PurchaseCheckoutButton>
       </aside>
     </div>
   );

@@ -5,9 +5,12 @@ import { MessageCenter } from "@/components/message-center";
 
 export const dynamic = "force-dynamic";
 
-export default async function MessagesPage() {
+type SearchParams = Promise<{ contact?: string }>;
+
+export default async function MessagesPage(props: { searchParams: SearchParams }) {
   const session = await auth();
   if (!session?.user) redirect("/auth/signin");
+  const searchParams = await props.searchParams;
 
   const [customerBookings, sellerBookings] = await Promise.all([
     prisma.booking.findMany({
@@ -49,7 +52,7 @@ export default async function MessagesPage() {
       <h1 className="font-serif text-4xl">Messaging</h1>
       <p className="mt-2 text-sm opacity-70">Real-time chat between buyers and sellers.</p>
       <div className="mt-6">
-        <MessageCenter currentUserId={session.user.id} contacts={contacts} />
+        <MessageCenter currentUserId={session.user.id} contacts={contacts} initialActiveId={searchParams.contact} />
       </div>
     </main>
   );

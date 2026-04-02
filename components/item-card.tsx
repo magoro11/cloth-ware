@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Heart } from "lucide-react";
-import { useState } from "react";
 import { formatCurrency } from "@/lib/utils";
-import { useToast } from "@/components/toast-provider";
 import { AddToCartButton } from "@/components/add-to-cart-button";
+import { WishlistButton } from "@/components/wishlist-button";
 
 type ItemCardProps = {
   item: {
@@ -28,35 +26,9 @@ type ItemCardProps = {
 };
 
 export function ItemCard({ item }: ItemCardProps) {
-  const { pushToast } = useToast();
-  const [wishlisted, setWishlisted] = useState(Boolean(item.isWishlisted));
-  const [saving, setSaving] = useState(false);
-
   const averageRating = item.reviews?.length
     ? (item.reviews.reduce((acc, review) => acc + review.rating, 0) / item.reviews.length).toFixed(1)
     : null;
-
-  async function toggleWishlist(event: React.MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    setSaving(true);
-    const response = await fetch("/api/wishlist", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemId: item.id }),
-    });
-    const payload = await response.json();
-    setSaving(false);
-
-    if (!response.ok) {
-      pushToast(payload.error || "Sign in to save wishlist items");
-      return;
-    }
-
-    setWishlisted(Boolean(payload.wishlisted));
-    pushToast(payload.wishlisted ? "Added to wishlist" : "Removed from wishlist");
-  }
 
   return (
     <Link
@@ -64,14 +36,7 @@ export function ItemCard({ item }: ItemCardProps) {
       className="group overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl dark:border-white/10 dark:bg-[#151822]"
     >
       <div className="relative aspect-[3/4] overflow-hidden bg-black/5 dark:bg-white/5">
-        <button
-          onClick={toggleWishlist}
-          disabled={saving}
-          className="absolute right-3 top-3 z-10 rounded-full bg-white/90 p-2 text-black shadow dark:bg-black/60 dark:text-white"
-          aria-label="Toggle wishlist"
-        >
-          <Heart className={`size-4 ${wishlisted ? "fill-current" : ""}`} />
-        </button>
+        <WishlistButton itemId={item.id} initialWishlisted={item.isWishlisted} className="absolute right-3 top-3 z-10 p-2" />
 
         {item.images[0]?.url ? (
           <Image

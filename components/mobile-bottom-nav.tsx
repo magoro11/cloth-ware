@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutDashboard, MessageSquare, Search, ShoppingBag, Store } from "lucide-react";
+import { Heart, Home, LayoutDashboard, MessageSquare, Search, ShoppingBag, Store, UserRound } from "lucide-react";
 
 const links = [
   { href: "/", label: "Home", icon: Home },
   { href: "/marketplace", label: "Explore", icon: Search },
+  { href: "/wishlist", label: "Saved", icon: Heart },
   { href: "/cart", label: "Cart", icon: ShoppingBag },
-  { href: "/list-item", label: "Sell", icon: Store },
   { href: "/messages", label: "Chat", icon: MessageSquare },
-  { href: "/dashboard", label: "Account", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Orders", icon: LayoutDashboard },
+  { href: "/profile", label: "Profile", icon: UserRound },
+  { href: "/list-item", label: "Sell", icon: Store },
 ];
 
 export function MobileBottomNav() {
@@ -18,7 +20,7 @@ export function MobileBottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/10 bg-[var(--surface)]/95 px-2 py-2 backdrop-blur dark:border-white/10 md:hidden">
-      <ul className="grid grid-cols-6 gap-1">
+      <ul className="grid grid-cols-7 gap-1">
         {links.map((link) => {
           const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
           const Icon = link.icon;

@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency } from "@/lib/utils";
+import { SellerListingActions } from "@/components/seller-listing-actions";
+
+const prismaAny = prisma as any;
 
 export const dynamic = "force-dynamic";
 
@@ -13,13 +16,13 @@ export default async function SellerDashboardPage() {
   if (session.user.role === "ADMIN") redirect("/dashboard/admin");
 
   const [listings, orders] = await Promise.all([
-    prisma.item.findMany({
+    prismaAny.item.findMany({
       where: { ownerId: session.user.id },
       include: { bookings: true },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
-    prisma.booking.findMany({
+    prismaAny.booking.findMany({
       where: { item: { ownerId: session.user.id } },
       include: { customer: { select: { name: true, email: true } }, item: { select: { title: true, brand: true } } },
       orderBy: { createdAt: "desc" },
@@ -28,11 +31,11 @@ export default async function SellerDashboardPage() {
   ]);
 
   const grossRevenue = orders
-    .filter((order) => ["CONFIRMED", "ACTIVE", "LATE", "COMPLETED"].includes(order.status))
-    .reduce((acc, order) => acc + order.rentalAmount, 0);
+    .filter((order: any) => ["CONFIRMED", "ACTIVE", "LATE", "COMPLETED"].includes(order.status))
+    .reduce((acc: number, order: any) => acc + order.rentalAmount, 0);
   const payoutProjection = orders
-    .filter((order) => ["CONFIRMED", "ACTIVE", "LATE", "COMPLETED"].includes(order.status))
-    .reduce((acc, order) => acc + order.ownerPayoutAmount, 0);
+    .filter((order: any) => ["CONFIRMED", "ACTIVE", "LATE", "COMPLETED"].includes(order.status))
+    .reduce((acc: number, order: any) => acc + order.ownerPayoutAmount, 0);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
@@ -68,7 +71,7 @@ export default async function SellerDashboardPage() {
           </div>
           <div className="space-y-2 text-sm">
             {listings.length === 0 ? <p className="opacity-70">No listings yet.</p> : null}
-            {listings.map((listing) => (
+            {listings.map((listing: any) => (
               <article key={listing.id} className="rounded-xl border border-black/10 p-3 dark:border-white/10">
                 <p className="font-medium">
                   {listing.brand} {listing.title}
@@ -76,7 +79,10 @@ export default async function SellerDashboardPage() {
                 <p className="opacity-75">
                   {listing.category} | Size {listing.size}
                 </p>
-                <p className="opacity-75">{listing.bookings.length} bookings</p>
+                <p className="opacity-75">
+                  {listing.bookings.length} bookings | {listing.isAvailable ? "Available" : "Unavailable"} | {listing.featured ? "Approved" : "Pending approval"}
+                </p>
+                <SellerListingActions itemId={listing.id} isAvailable={listing.isAvailable} />
               </article>
             ))}
           </div>
@@ -98,7 +104,7 @@ export default async function SellerDashboardPage() {
         <h2 className="font-serif text-2xl">Orders and availability calendar</h2>
         <div className="mt-3 space-y-3 text-sm">
           {orders.length === 0 ? <p className="opacity-70">No orders yet.</p> : null}
-          {orders.map((order) => (
+          {orders.map((order: any) => (
             <article key={order.id} className="rounded-xl border border-black/10 p-3 dark:border-white/10">
               <p className="font-medium">
                 {order.item.brand} {order.item.title}
@@ -109,6 +115,16 @@ export default async function SellerDashboardPage() {
               <p className="opacity-75">
                 {new Date(order.startDate).toLocaleDateString()} - {new Date(order.endDate).toLocaleDateString()}
               </p>
+              <p className="opacity-75">
+                {order.fulfillmentMethod || "Delivery choice pending"} | {order.paymentMethod || "Payment pending"}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href={`/messages?contact=${order.customerId}`} className="rounded-lg border border-black/15 px-3 py-1.5 text-xs hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10">
+                  Chat user
+                </Link>
+                <button className="rounded-lg border border-black/15 px-3 py-1.5 text-xs dark:border-white/20">Mark as delivered</button>
+                <button className="rounded-lg border border-black/15 px-3 py-1.5 text-xs dark:border-white/20">Mark as returned</button>
+              </div>
             </article>
           ))}
         </div>
