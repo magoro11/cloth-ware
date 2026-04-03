@@ -5,11 +5,14 @@ export function SiteFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-black/10 bg-white/70 pb-24 pt-10 backdrop-blur dark:border-white/10 dark:bg-[#0f1118]/70 md:pb-10">
+    <footer className="border-t border-black/10 bg-[#fff8f0]/75 pb-24 pt-12 backdrop-blur dark:border-white/10 dark:bg-[#10141d]/75 md:pb-10">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 md:grid-cols-4 md:px-8">
         <div className="md:col-span-2">
-          <p className="font-serif text-2xl">{APP_NAME}</p>
-          <p className="mt-2 max-w-md text-sm opacity-75">{APP_TAGLINE}</p>
+          <p className="font-serif text-3xl">{APP_NAME}</p>
+          <p className="mt-3 max-w-md text-sm leading-7 opacity-75">{APP_TAGLINE}</p>
+          <p className="mt-3 max-w-lg text-sm leading-7 opacity-65">
+            Premium fashion rental and resale with a clearer discovery flow, trust-forward booking, and seller tools that support repeat use.
+          </p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-[0.18em] opacity-60">Marketplace</p>

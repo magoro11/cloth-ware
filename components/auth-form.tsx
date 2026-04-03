@@ -6,10 +6,11 @@ import styles from "./auth-form.module.css";
 
 type AuthFormProps = {
   googleEnabled?: boolean;
+  initialMode?: "signin" | "signup";
 };
 
-export function AuthForm({ googleEnabled = true }: AuthFormProps) {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+export function AuthForm({ googleEnabled = true, initialMode = "signin" }: AuthFormProps) {
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

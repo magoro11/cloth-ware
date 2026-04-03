@@ -45,7 +45,7 @@ export function ItemCard({ item }: ItemCardProps) {
             width={800}
             height={1000}
             unoptimized
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            className="card-cinematic-image h-full w-full object-cover transition duration-700 group-hover:scale-[1.16]"
           />
         ) : (
           <div className="grid h-full place-content-center text-sm opacity-60">No image</div>
