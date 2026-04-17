@@ -38,8 +38,8 @@ npm install
 2. Configure `.env`
 
 ```env
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/rewear?schema=public"
-DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/rewear?schema=public"
+DATABASE_URL="postgresql://postgres.YOUR_PROJECT_REF:PASSWORD@aws-REGION.pooler.supabase.com:5432/postgres?sslmode=require&pgbouncer=true"
+DIRECT_URL="postgresql://postgres.YOUR_PROJECT_REF:PASSWORD@db.YOUR_PROJECT_REF.supabase.co:5432/postgres?sslmode=require"
 AUTH_SECRET="replace-with-a-long-random-secret"
 AUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="replace-with-a-long-random-secret"
@@ -54,6 +54,8 @@ STRIPE_WEBHOOK_SECRET=""
 
 OPENAI_API_KEY=""
 ```
+
+For Supabase, keep `DATABASE_URL` on the pooler/Prisma connection string and `DIRECT_URL` on the direct database host from the same project. Do not point `DIRECT_URL` at the pooler host.
 
 If you use Vercel Postgres, the app can also fall back to Vercel-provided variables such as `POSTGRES_PRISMA_URL`, `POSTGRES_URL`, and `POSTGRES_URL_NON_POOLING` when `DATABASE_URL` is not set manually.
 
