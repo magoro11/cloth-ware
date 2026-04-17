@@ -9,7 +9,9 @@ function getErrorMessage(error: unknown): string {
   return e.message || "";
 }
 
-export function databaseIssue(error: unknown): "missing_database_url" | "database_unreachable" | "missing_table" | null {
+export function databaseIssue(
+  error: unknown,
+): "missing_database_url" | "database_unreachable" | "database_auth" | "missing_table" | null {
   const e = (error || {}) as MaybeError;
   const message = getErrorMessage(error);
 
@@ -26,6 +28,15 @@ export function databaseIssue(error: unknown): "missing_database_url" | "databas
     message.includes("ConnectionReset")
   ) {
     return "database_unreachable";
+  }
+
+  if (
+    e.code === "P1000" ||
+    message.includes("Authentication failed") ||
+    message.includes("password authentication failed") ||
+    message.includes("Tenant or user not found")
+  ) {
+    return "database_auth";
   }
 
   if (
@@ -52,6 +63,10 @@ export function databaseErrorMessage(error: unknown): string {
 
   if (issue === "database_unreachable") {
     return "The database is configured but could not be reached from the app.";
+  }
+
+  if (issue === "database_auth") {
+    return "The database credentials are invalid for the configured host or tenant.";
   }
 
   if (issue === "missing_table") {
