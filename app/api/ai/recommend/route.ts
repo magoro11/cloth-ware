@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { errorStatus } from "@/lib/errors";
+import { errorStatus } from "@/backend/lib/errors";
 
 const schema = z.object({
   eventType: z.string(),

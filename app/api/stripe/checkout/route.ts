@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe";
+import { stripe } from "@/backend/lib/stripe";
 import { requireUser } from "@/lib/access";
-import { errorStatus } from "@/lib/errors";
+import { errorStatus } from "@/backend/lib/errors";
 
 const schema = z.object({
   bookingId: z.string(),

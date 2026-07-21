@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/access";
-import { errorStatus } from "@/lib/errors";
-import { initiateMpesaStk, MpesaStkError } from "@/lib/mpesa";
+import { errorStatus } from "@/backend/lib/errors";
+import { initiateMpesaStk, MpesaStkError } from "@/backend/lib/mpesa";
 import { isPrismaUnknownFieldError } from "@/lib/prisma-compat";
 
 const schema = z.object({

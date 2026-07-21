@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { BookingStatus } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { calculateRentalQuote, overlaps } from "@/lib/rental";
+import { calculateRentalQuote, overlaps } from "@/backend/lib/rental";
 import { requireUser } from "@/lib/access";
-import { sendEmailNotification } from "@/lib/notifications";
+import { sendEmailNotification } from "@/backend/lib/notifications";
 import { isPrismaUnknownFieldError } from "@/lib/prisma-compat";
 
 const prismaAny = prisma as any;

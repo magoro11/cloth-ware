@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { calculateRentalQuote, overlaps } from "@/lib/rental";
+import { calculateRentalQuote, overlaps } from "@/backend/lib/rental";
 
 const quoteSchema = z.object({
   itemId: z.string().min(2),

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { databaseErrorMessage, errorStatus, isDatabaseUnavailable } from "@/lib/errors";
+import { databaseErrorMessage, errorStatus, isDatabaseUnavailable } from "@/backend/lib/errors";
 
 const schema = z.object({
   name: z.string().min(2).max(80),

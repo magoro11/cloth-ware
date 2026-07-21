@@ -20,6 +20,7 @@ export async function GET() {
   }
 }
 
+/** Toggle: adds if absent, removes if present. Used by the heart button. */
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
@@ -38,6 +39,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ wishlisted: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update wishlist";
+    const status = message === "Unauthorized" ? 401 : 400;
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+
+/** Explicit DELETE — always removes without toggling. */
+export async function DELETE(request: Request) {
+  try {
+    const user = await requireUser();
+    const payload = schema.parse(await request.json());
+
+    await prisma.wishlist.deleteMany({
+      where: { userId: user.id, itemId: payload.itemId },
+    });
+
+    return NextResponse.json({ wishlisted: false });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to remove from wishlist";
     const status = message === "Unauthorized" ? 401 : 400;
     return NextResponse.json({ error: message }, { status });
   }

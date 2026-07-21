@@ -1,21 +1,21 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import "./globals.css";
-import { AppProviders } from "@/components/providers/app-providers";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
-import { MobileBottomNav } from "@/components/mobile-bottom-nav";
-import { AnalyticsTracker } from "@/components/analytics-tracker";
+import { AppProviders } from "@/frontend/components/providers/app-providers";
+import { SiteHeader } from "@/frontend/components/site-header";
+import { SiteFooter } from "@/frontend/components/site-footer";
+import { MobileBottomNav } from "@/frontend/components/mobile-bottom-nav";
+import { AnalyticsTracker } from "@/frontend/components/analytics-tracker";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   title: {
-    default: `${APP_NAME} | Luxury Fashion Rental and Resale`,
+    default: `${APP_NAME} | Modern Fashion Store`,
     template: `%s | ${APP_NAME}`,
   },
   description: APP_TAGLINE,
-  keywords: ["luxury fashion rental", "designer resale", "dress rental", "secure deposits", "seller payouts"],
+  keywords: ["fashion", "clothing", "modern style", "shoes", "bags", "sale"],
   openGraph: {
     title: APP_NAME,
     description: APP_TAGLINE,

@@ -3,7 +3,7 @@ import { differenceInCalendarDays } from "date-fns";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/access";
-import { sendEmailNotification } from "@/lib/notifications";
+import { sendEmailNotification } from "@/backend/lib/notifications";
 
 const schema = z.object({
   returnedAt: z.coerce.date().optional(),

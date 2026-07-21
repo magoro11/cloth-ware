@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { initiateMpesaStk, MpesaStkError } from "@/lib/mpesa";
+import { initiateMpesaStk, MpesaStkError } from "@/backend/lib/mpesa";
 
 export async function POST(req: NextRequest) {
   try {

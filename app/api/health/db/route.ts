@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { databaseErrorMessage, errorStatus, logDatabaseIssue } from "@/lib/errors";
+import { databaseErrorMessage, errorStatus, logDatabaseIssue } from "@/backend/lib/errors";
 
 export async function GET() {
   try {

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/access";
-import { errorStatus } from "@/lib/errors";
+import { errorStatus } from "@/backend/lib/errors";
 import { PLATFORM_COMMISSION_RATE } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe";
+import { stripe } from "@/backend/lib/stripe";
 import { isPrismaUnknownFieldError } from "@/lib/prisma-compat";
 
 const prismaAny = prisma as any;

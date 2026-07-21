@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { isDatabaseUnavailable } from "@/lib/errors";
+import { isDatabaseUnavailable } from "@/backend/lib/errors";
 
 export default function Error({
   error,

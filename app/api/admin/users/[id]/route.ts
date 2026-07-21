@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
-import { errorStatus } from "@/lib/errors";
+import { errorStatus } from "@/backend/lib/errors";
 import { isPrismaUnknownFieldError } from "@/lib/prisma-compat";
 
 const prismaAny = prisma as any;

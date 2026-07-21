@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/access";
-import { errorStatus, isDatabaseUnavailable } from "@/lib/errors";
+import { errorStatus, isDatabaseUnavailable } from "@/backend/lib/errors";
 import { prisma } from "@/lib/prisma";
 
 const schema = z.object({

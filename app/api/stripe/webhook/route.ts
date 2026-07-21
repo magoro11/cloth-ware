@@ -2,9 +2,9 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { PLATFORM_COMMISSION_RATE } from "@/lib/constants";
-import { stripe } from "@/lib/stripe";
+import { stripe } from "@/backend/lib/stripe";
 import { prisma } from "@/lib/prisma";
-import { errorStatus } from "@/lib/errors";
+import { errorStatus } from "@/backend/lib/errors";
 
 const prismaAny = prisma as any;
 
