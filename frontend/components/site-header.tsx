@@ -92,6 +92,29 @@ export function SiteHeader() {
           </nav>
         </div>
       </div>
+
+      <div className="border-t border-black/5 dark:border-white/5">
+        <div className="mx-auto max-w-7xl flex gap-3 overflow-x-auto px-4 py-3 md:px-8">
+          <Link href="/" className="flex min-w-[200px] items-center gap-3 rounded-xl border border-black/5 bg-black/90 p-3 text-white dark:border-white/10">
+            <div>
+              <p className="text-xs font-semibold">Text to Order</p>
+              <p className="text-[11px] text-white/70">Chat with us on WhatsApp</p>
+            </div>
+          </Link>
+          <Link href="/marketplace?category=Sale" className="flex min-w-[200px] items-center gap-3 rounded-xl border border-black/5 bg-[#c25e30] p-3 text-white dark:border-white/10">
+            <div>
+              <p className="text-xs font-semibold">Flash Sale</p>
+              <p className="text-[11px] text-white/80">Up to 50% off selected items</p>
+            </div>
+          </Link>
+          <Link href="/list-item" className="flex min-w-[200px] items-center gap-3 rounded-xl border border-black/5 bg-black/90 p-3 text-white dark:border-white/10">
+            <div>
+              <p className="text-xs font-semibold">Sell on ATELIER</p>
+              <p className="text-[11px] text-white/70">Start selling today</p>
+            </div>
+          </Link>
+        </div>
+      </div>
     </header>
   );
 }

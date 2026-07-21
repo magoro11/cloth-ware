@@ -5,7 +5,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { APP_TAGLINE, CATEGORIES, FEATURED_BRANDS } from "@/lib/constants";
 import { ItemCard } from "@/frontend/components/item-card";
-import { LiveFlashSaleCountdown } from "@/frontend/components/live-flash-sale-countdown";
+import { ClientFlashSaleCountdown } from "@/frontend/components/client-flash-sale-countdown";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 30;
@@ -50,8 +50,6 @@ export default async function Home() {
     flashSale = [];
   }
 
-  const featuredImage = pickImage(newArrivals[0] ?? topSelling[0]);
-
   const categoryImages: Record<string, string> = {
     Women: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&q=80",
     Men: "https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?w=400&q=80",
@@ -61,8 +59,17 @@ export default async function Home() {
     Sale: "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&q=80",
   };
 
-  // eslint-disable-next-line react-hooks/purity
-  const flashSaleDeadline = new Date(Date.now() + 10 * 60 * 60 * 1000);
+  const categoryHeroImages: Record<string, string> = {
+    Women: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&q=80",
+    Men: "https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?w=800&q=80",
+    Shoes: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=800&q=80",
+    Bags: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&q=80",
+    Accessories: "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=800&q=80",
+    Sale: "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&q=80",
+  };
+
+  const heroImage = categoryHeroImages[CATEGORIES[0]];
+  const featuredImage = heroImage ?? pickImage(newArrivals[0] ?? topSelling[0]);
 
   return (
     <main className="mx-auto max-w-7xl md:px-8">
@@ -134,7 +141,7 @@ export default async function Home() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="font-serif text-2xl">Flash Sale</h2>
-            <LiveFlashSaleCountdown deadline={flashSaleDeadline} />
+            <ClientFlashSaleCountdown />
           </div>
           <Link href="/marketplace?category=Sale" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">See All</Link>
         </div>
@@ -156,6 +163,41 @@ export default async function Home() {
           {newArrivals.slice(0, 10).map((item) => (
             <ItemCard key={item.id} item={item} />
           ))}
+        </div>
+      </section>
+
+      <section className="mx-4 mt-10 md:mx-0">
+        <div className="rounded-2xl border border-black/5 bg-gradient-to-r from-[#c25e30] to-[#a84d26] p-6 text-white dark:border-white/10 md:p-10">
+          <div className="grid gap-6 md:grid-cols-2 md:items-center">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-white/80">Become a Seller</p>
+              <h2 className="mt-2 font-serif text-3xl md:text-4xl">Sell on ATELIER</h2>
+              <p className="mt-3 text-sm leading-7 text-white/80">
+                Reach thousands of fashion lovers. List your items in minutes and start selling today.
+              </p>
+              <Link href="/list-item" className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90">
+                Start Selling <ArrowRight className="size-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-white/20 bg-white/10 p-4">
+                <p className="text-2xl font-semibold">10K+</p>
+                <p className="mt-1 text-xs text-white/80">Active buyers</p>
+              </div>
+              <div className="rounded-xl border border-white/20 bg-white/10 p-4">
+                <p className="text-2xl font-semibold">500+</p>
+                <p className="mt-1 text-xs text-white/80">Verified sellers</p>
+              </div>
+              <div className="rounded-xl border border-white/20 bg-white/10 p-4">
+                <p className="text-2xl font-semibold">24h</p>
+                <p className="mt-1 text-xs text-white/80">Fast payouts</p>
+              </div>
+              <div className="rounded-xl border border-white/20 bg-white/10 p-4">
+                <p className="text-2xl font-semibold">0%</p>
+                <p className="mt-1 text-xs text-white/80">Listing fee</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
