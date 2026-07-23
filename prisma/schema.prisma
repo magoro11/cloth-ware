@@ -302,6 +302,7 @@ enum PayoutStatus {
 }
 
 enum PurchaseStatus {
+  PENDING
   PAID
   FULFILLED
   CANCELED

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 30;
 
 type ItemWithRelations = Prisma.ItemGetPayload<{
-  include: { images: true; owner: { select: { role: true } }; reviews: true };
+  include: { images: true; reviews: true };
 }>;
 
 function pickImage(item: ItemWithRelations) {
@@ -22,50 +22,66 @@ export default async function Home() {
   let topSelling: ItemWithRelations[] = [];
   let newArrivals: ItemWithRelations[] = [];
   let flashSale: ItemWithRelations[] = [];
+  let recommended: ItemWithRelations[] = [];
 
   try {
-    [topSelling, newArrivals, flashSale] = await Promise.all([
+    [topSelling, newArrivals, flashSale, recommended] = await Promise.all([
       prisma.item.findMany({
         where: { featured: true, isAvailable: true },
-        include: { images: true, owner: { select: { role: true } }, reviews: true },
+        include: { images: true, reviews: { take: 3, orderBy: { createdAt: "desc" } } },
         orderBy: { reviews: { _count: "desc" } },
         take: 12,
       }),
       prisma.item.findMany({
         where: { featured: true, isAvailable: true },
-        include: { images: true, owner: { select: { role: true } }, reviews: true },
+        include: { images: true, reviews: { take: 3, orderBy: { createdAt: "desc" } } },
         orderBy: { createdAt: "desc" },
         take: 12,
       }),
       prisma.item.findMany({
         where: { featured: true, isAvailable: true, sellingPrice: { not: null } },
-        include: { images: true, owner: { select: { role: true } }, reviews: true },
+        include: { images: true, reviews: { take: 3, orderBy: { createdAt: "desc" } } },
         orderBy: { createdAt: "asc" },
         take: 12,
+      }),
+      prisma.item.findMany({
+        where: { isAvailable: true },
+        include: { images: true, reviews: { take: 3, orderBy: { createdAt: "desc" } } },
+        orderBy: { createdAt: "desc" },
+        take: 15,
       }),
     ]);
   } catch {
     topSelling = [];
     newArrivals = [];
     flashSale = [];
+    recommended = [];
   }
 
   const categoryImages: Record<string, string> = {
-    Women: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&q=80",
-    Men: "https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?w=400&q=80",
-    Shoes: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400&q=80",
-    Bags: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&q=80",
-    Accessories: "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=400&q=80",
-    Sale: "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&q=80",
+    Electronics: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&q=80",
+    Fashion: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&q=80",
+    "Phones & Tablets": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80",
+    "Home & Living": "https://images.unsplash.com/photo-1484101403633-562f891dc89a?w=400&q=80",
+    "Beauty & Health": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=400&q=80",
+    Supermarket: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80",
+    Computing: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&q=80",
+    Gaming: "https://images.unsplash.com/photo-1542751371-adc3840a45e5?w=400&q=80",
+    "Sports & Outdoors": "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=400&q=80",
+    Automotive: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&q=80",
   };
 
   const categoryHeroImages: Record<string, string> = {
-    Women: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&q=80",
-    Men: "https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?w=800&q=80",
-    Shoes: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=800&q=80",
-    Bags: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&q=80",
-    Accessories: "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=800&q=80",
-    Sale: "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&q=80",
+    Electronics: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800&q=80",
+    Fashion: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&q=80",
+    "Phones & Tablets": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80",
+    "Home & Living": "https://images.unsplash.com/photo-1484101403633-562f891dc89a?w=800&q=80",
+    "Beauty & Health": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=800&q=80",
+    Supermarket: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80",
+    Computing: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&q=80",
+    Gaming: "https://images.unsplash.com/photo-1542751371-adc3840a45e5?w=800&q=80",
+    "Sports & Outdoors": "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80",
+    Automotive: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&q=80",
   };
 
   const heroImage = categoryHeroImages[CATEGORIES[0]];
@@ -90,11 +106,11 @@ export default async function Home() {
               <button className="shrink-0 rounded-full bg-[#c25e30] px-5 py-3 text-sm font-semibold hover:bg-[#a84d26]">Search</button>
             </form>
             <div className="flex flex-wrap gap-3 pt-2">
-              <Link href="/marketplace?category=Sale" className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90">
-                Shop sale <ArrowRight className="size-4" />
+              <Link href="/marketplace?category=Fashion" className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90">
+                Shop Fashion <ArrowRight className="size-4" />
               </Link>
-              <Link href="/marketplace?category=Women" className="rounded-full border border-white/25 px-5 py-3 text-sm font-medium hover:bg-white/10">
-                Shop women
+              <Link href="/marketplace" className="rounded-full border border-white/25 px-5 py-3 text-sm font-medium hover:bg-white/10">
+                Explore All
               </Link>
             </div>
           </div>
@@ -170,31 +186,31 @@ export default async function Home() {
         <div className="rounded-2xl border border-black/5 bg-gradient-to-r from-[#c25e30] to-[#a84d26] p-6 text-white dark:border-white/10 md:p-10">
           <div className="grid gap-6 md:grid-cols-2 md:items-center">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-white/80">Become a Seller</p>
-              <h2 className="mt-2 font-serif text-3xl md:text-4xl">Sell on ATELIER</h2>
+              <p className="text-xs font-semibold uppercase tracking-widest text-white/80">Flash Sale</p>
+              <h2 className="mt-2 font-serif text-3xl md:text-4xl">Today&apos;s Best Deals</h2>
               <p className="mt-3 text-sm leading-7 text-white/80">
-                Reach thousands of fashion lovers. List your items in minutes and start selling today.
+                Grab these limited-time offers before they are gone. Free delivery on selected items.
               </p>
-              <Link href="/list-item" className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90">
-                Start Selling <ArrowRight className="size-4" />
+              <Link href="/marketplace?category=Sale" className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90">
+                Shop Deals <ArrowRight className="size-4" />
               </Link>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-white/20 bg-white/10 p-4">
-                <p className="text-2xl font-semibold">10K+</p>
-                <p className="mt-1 text-xs text-white/80">Active buyers</p>
-              </div>
-              <div className="rounded-xl border border-white/20 bg-white/10 p-4">
-                <p className="text-2xl font-semibold">500+</p>
-                <p className="mt-1 text-xs text-white/80">Verified sellers</p>
+                <p className="text-2xl font-semibold">Up to 50%</p>
+                <p className="mt-1 text-xs text-white/80">Off selected items</p>
               </div>
               <div className="rounded-xl border border-white/20 bg-white/10 p-4">
                 <p className="text-2xl font-semibold">24h</p>
-                <p className="mt-1 text-xs text-white/80">Fast payouts</p>
+                <p className="mt-1 text-xs text-white/80">Limited time only</p>
               </div>
               <div className="rounded-xl border border-white/20 bg-white/10 p-4">
-                <p className="text-2xl font-semibold">0%</p>
-                <p className="mt-1 text-xs text-white/80">Listing fee</p>
+                <p className="text-2xl font-semibold">Free</p>
+                <p className="mt-1 text-xs text-white/80">Delivery on deals</p>
+              </div>
+              <div className="rounded-xl border border-white/20 bg-white/10 p-4">
+                <p className="text-2xl font-semibold">COD</p>
+                <p className="mt-1 text-xs text-white/80">Pay on delivery</p>
               </div>
             </div>
           </div>
@@ -203,20 +219,64 @@ export default async function Home() {
 
       <section className="mx-4 mt-10 md:mx-0">
         <div className="flex items-center justify-between">
-          <h2 className="font-serif text-2xl">Shop by Category</h2>
+          <h2 className="font-serif text-2xl">What Our Customers Say</h2>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-3 md:grid-cols-6">
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          {[
+            { name: "Grace N.", text: "Fast delivery and authentic products. Best marketplace experience!" },
+            { name: "James K.", text: "Great prices and excellent customer service. Highly recommended." },
+            { name: "Amina H.", text: "Easy checkout process and secure payments. Love shopping here." },
+          ].map((review) => (
+            <div key={review.name} className="rounded-2xl border border-black/5 bg-white p-5 dark:border-white/10 dark:bg-[#151822]">
+              <p className="text-sm leading-7 text-black/80 dark:text-white/80">&ldquo;{review.text}&rdquo;</p>
+              <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-black/60 dark:text-white/60">- {review.name}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-4 mt-10 md:mx-0">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif text-2xl">Shop by Category</h2>
+          <Link href="/marketplace" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">See All</Link>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-3 md:grid-cols-5 lg:grid-cols-10">
           {CATEGORIES.map((category) => (
             <Link
               key={category}
               href={`/marketplace?category=${category}`}
-              className="flex flex-col items-center gap-2 rounded-2xl border border-black/5 bg-white p-3 transition hover:shadow-md dark:border-white/10 dark:bg-[#151822]"
+              className="group flex flex-col items-center gap-2 rounded-2xl border border-black/5 bg-white p-3 text-center transition hover:shadow-md dark:border-white/10 dark:bg-[#151822]"
             >
               <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-black/5 dark:bg-white/5">
-                <Image src={categoryImages[category] ?? categoryImages.Women} alt={category} fill className="object-cover" />
+                <Image src={categoryImages[category] ?? categoryImages.Electronics} alt={category} fill className="object-cover" />
               </div>
-              <span className="text-xs font-medium">{category}</span>
+              <span className="text-[11px] font-medium leading-tight">{category}</span>
             </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-4 mt-10 md:mx-0">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif text-2xl">Recommended For You</h2>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
+          {recommended.slice(0, 10).map((item) => (
+            <ItemCard key={item.id} item={item} />
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-4 mt-10 md:mx-0">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif text-2xl">Best Sellers</h2>
+          <Link href="/marketplace" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">See All</Link>
+        </div>
+        <div className="mt-4 flex gap-4 overflow-x-auto pb-4 md:mx-0">
+          {topSelling.map((item) => (
+            <div key={item.id} className="min-w-[260px] max-w-[260px] snap-start">
+              <ItemCard item={item} />
+            </div>
           ))}
         </div>
       </section>

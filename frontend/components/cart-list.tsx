@@ -18,7 +18,7 @@ type CartItem = {
     sellingPrice: number | null;
     rentalPricePerDay: number;
     images: { url: string }[];
-    owner: { name: string | null; email: string | null };
+    owner: { name: string | null };
   };
 };
 
