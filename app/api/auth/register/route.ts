@@ -7,8 +7,9 @@ import { databaseErrorMessage, errorStatus, isDatabaseUnavailable } from "@/back
 const schema = z.object({
   name: z.string().min(2).max(80),
   email: z.string().email(),
-  password: z.string().min(8).max(100),
-  role: z.enum(["CUSTOMER", "LENDER"]).default("CUSTOMER"),
+  password: z.string().min(8).max(100).refine((val) => /[A-Z]/.test(val) && /[a-z]/.test(val) && /[0-9]/.test(val), {
+    message: "Password must contain at least one uppercase letter, one lowercase letter, and one number",
+  }),
 });
 
 export async function POST(request: Request) {
@@ -28,9 +29,9 @@ export async function POST(request: Request) {
         name: data.name,
         email: data.email,
         passwordHash,
-        role: data.role,
+        role: "CUSTOMER",
       },
-      select: { id: true, email: true, name: true, role: true },
+      select: { id: true, email: true, name: true },
     });
 
     return NextResponse.json({ user }, { status: 201 });

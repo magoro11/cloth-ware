@@ -3,7 +3,7 @@ import { BookingStatus } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { calculateRentalQuote, overlaps } from "@/backend/lib/rental";
-import { requireUser } from "@/lib/access";
+import { requireUser, AuthError } from "@/lib/access";
 import { sendEmailNotification } from "@/backend/lib/notifications";
 import { isPrismaUnknownFieldError } from "@/lib/prisma-compat";
 
@@ -109,8 +109,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ booking }, { status: 201 });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     const msg = error instanceof Error ? error.message : "Unable to create booking";
-    const status = msg === "Unauthorized" ? 401 : 400;
-    return NextResponse.json({ error: msg }, { status });
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 }

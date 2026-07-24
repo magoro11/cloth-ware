@@ -14,7 +14,6 @@ export function AuthForm({ googleEnabled = true, initialMode = "signin" }: AuthF
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"CUSTOMER" | "LENDER">("CUSTOMER");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -45,7 +44,7 @@ export function AuthForm({ googleEnabled = true, initialMode = "signin" }: AuthF
         const register = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password, role }),
+          body: JSON.stringify({ name, email, password }),
         });
 
         if (!register.ok) {
@@ -122,16 +121,6 @@ export function AuthForm({ googleEnabled = true, initialMode = "signin" }: AuthF
           className={styles.field}
           required
         />
-        {mode === "signup" ? (
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as "CUSTOMER" | "LENDER")}
-            className={styles.field}
-          >
-            <option value="CUSTOMER">Buyer</option>
-            <option value="LENDER">Seller</option>
-          </select>
-        ) : null}
         <button
           type="submit"
           className={styles.primaryButton}

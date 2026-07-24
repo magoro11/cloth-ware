@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/access";
+import { requireUser, AuthError } from "@/lib/access";
 
 const schema = z.object({
   itemId: z.string().min(2),
@@ -15,7 +15,10 @@ export async function GET() {
       select: { itemId: true },
     });
     return NextResponse.json({ itemIds: wishlist.map((entry) => entry.itemId) });
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     return NextResponse.json({ itemIds: [] });
   }
 }
@@ -38,9 +41,11 @@ export async function POST(request: Request) {
     await prisma.wishlist.create({ data: { userId: user.id, itemId: payload.itemId } });
     return NextResponse.json({ wishlisted: true });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : "Unable to update wishlist";
-    const status = message === "Unauthorized" ? 401 : 400;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }
 
@@ -56,8 +61,10 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ wishlisted: false });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : "Unable to remove from wishlist";
-    const status = message === "Unauthorized" ? 401 : 400;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

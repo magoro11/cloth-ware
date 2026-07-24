@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser } from "@/lib/access";
+import { requireUser, AuthError } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { errorStatus } from "@/backend/lib/errors";
 import { isPrismaUnknownFieldError } from "@/lib/prisma-compat";
@@ -67,8 +67,11 @@ export async function GET() {
 
     return NextResponse.json({ profile });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     const msg = error instanceof Error ? error.message : "Unable to load profile";
-    return NextResponse.json({ error: msg }, { status: msg === "Unauthorized" ? 401 : errorStatus(error, 400) });
+    return NextResponse.json({ error: msg }, { status: errorStatus(error, 400) });
   }
 }
 
@@ -135,7 +138,10 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ profile });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     const msg = error instanceof Error ? error.message : "Unable to save profile";
-    return NextResponse.json({ error: msg }, { status: msg === "Unauthorized" ? 401 : errorStatus(error, 400) });
+    return NextResponse.json({ error: msg }, { status: errorStatus(error, 400) });
   }
 }

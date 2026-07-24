@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser } from "@/lib/access";
+import { requireUser, AuthError } from "@/lib/access";
 import { errorStatus, isDatabaseUnavailable } from "@/backend/lib/errors";
 import { prisma } from "@/lib/prisma";
 
@@ -29,10 +29,13 @@ export async function GET() {
       items: cartItems,
     });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : "Unable to load cart";
     return NextResponse.json(
       { error: isDatabaseUnavailable(error) ? "Cart tables are not in the database yet. Run npm run db:push." : message },
-      { status: message === "Unauthorized" ? 401 : errorStatus(error, 400) },
+      { status: errorStatus(error, 400) },
     );
   }
 }
@@ -89,10 +92,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ cartItem, count }, { status: 201 });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : "Unable to add item to cart";
     return NextResponse.json(
       { error: isDatabaseUnavailable(error) ? "Cart tables are not in the database yet. Run npm run db:push." : message },
-      { status: message === "Unauthorized" ? 401 : errorStatus(error, 400) },
+      { status: errorStatus(error, 400) },
     );
   }
 }
@@ -113,10 +119,13 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true, count });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : "Unable to remove item from cart";
     return NextResponse.json(
       { error: isDatabaseUnavailable(error) ? "Cart tables are not in the database yet. Run npm run db:push." : message },
-      { status: message === "Unauthorized" ? 401 : errorStatus(error, 400) },
+      { status: errorStatus(error, 400) },
     );
   }
 }
