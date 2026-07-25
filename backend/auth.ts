@@ -10,17 +10,25 @@ import { prisma } from "@/lib/prisma";
 const prismaAny = prisma as any;
 
 const envAuthSecret = process.env.AUTH_SECRET;
+const envNextAuthSecret = process.env.NEXTAUTH_SECRET;
+const authSecret = envAuthSecret ?? envNextAuthSecret;
 const authUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const isGoogleAuthConfigured = Boolean(googleClientId && googleClientSecret);
 
-if (process.env.NODE_ENV === "production" && !envAuthSecret) {
-  throw new Error("Auth configuration error: set AUTH_SECRET in the runtime environment.");
+if (envAuthSecret && envNextAuthSecret && envAuthSecret !== envNextAuthSecret) {
+  console.error(
+    "Auth configuration error: AUTH_SECRET and NEXTAUTH_SECRET must match or only one should be set.",
+  );
+}
+
+if (process.env.NODE_ENV === "production" && !authSecret) {
+  console.error("Auth configuration error: set AUTH_SECRET or NEXTAUTH_SECRET in the runtime environment.");
 }
 
 const config: NextAuthConfig = {
-  secret: envAuthSecret,
+  secret: authSecret,
   basePath: "/api/auth",
   session: { strategy: "jwt" },
   pages: {
@@ -104,9 +112,9 @@ if (authUrl) {
   process.env.NEXTAUTH_URL ??= authUrl;
 }
 
-if (envAuthSecret) {
-  process.env.AUTH_SECRET ??= envAuthSecret;
-  process.env.NEXTAUTH_SECRET ??= envAuthSecret;
+if (authSecret) {
+  process.env.AUTH_SECRET ??= authSecret;
+  process.env.NEXTAUTH_SECRET ??= authSecret;
 }
 
 if (isGoogleAuthConfigured) {

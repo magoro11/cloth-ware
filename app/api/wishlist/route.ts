@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser, AuthError } from "@/lib/access";
+import { errorStatus } from "@/backend/lib/errors";
 
 const schema = z.object({
   itemId: z.string().min(2),
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     const message = error instanceof Error ? error.message : "Unable to update wishlist";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: errorStatus(error, 400) });
   }
 }
 
@@ -65,6 +66,6 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     const message = error instanceof Error ? error.message : "Unable to remove from wishlist";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: errorStatus(error, 400) });
   }
 }

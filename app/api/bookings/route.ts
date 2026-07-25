@@ -6,6 +6,7 @@ import { calculateRentalQuote, overlaps } from "@/backend/lib/rental";
 import { requireUser, AuthError } from "@/lib/access";
 import { sendEmailNotification } from "@/backend/lib/notifications";
 import { isPrismaUnknownFieldError } from "@/lib/prisma-compat";
+import { errorStatus } from "@/backend/lib/errors";
 
 const prismaAny = prisma as any;
 
@@ -113,6 +114,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     const msg = error instanceof Error ? error.message : "Unable to create booking";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return NextResponse.json({ error: msg }, { status: errorStatus(error, 400) });
   }
 }
