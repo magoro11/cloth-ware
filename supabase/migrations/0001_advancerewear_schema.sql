@@ -105,7 +105,6 @@ create table if not exists public.messages (
   sender_id uuid not null references public.users(id) on delete cascade,
   recipient_id uuid not null references public.users(id) on delete cascade,
   listing_id uuid references public.listings(id) on delete set null,
-  content text not null,
   created_at timestamptz not null default now()
 );
 

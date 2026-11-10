@@ -9,37 +9,42 @@ datasource db {
 }
 
 model User {
-  cartItems         CartItem[]
-  id                String        @id @default(cuid())
-  name              String?
-  email             String        @unique
-  phone             String?
-  addressLine1      String?
-  addressLine2      String?
-  city              String?
-  country           String?
-  preferredPaymentMethod PaymentMethod?
+  cartItems                  CartItem[]
+  id                         String             @id @default(cuid())
+  name                       String?
+  email                      String             @unique
+  emailLower                 String             @unique
+  phone                      String?
+  addressLine1               String?
+  addressLine2               String?
+  city                       String?
+  country                    String?
+  preferredPaymentMethod     PaymentMethod?
   preferredFulfillmentMethod FulfillmentMethod?
-  emailVerified     DateTime?
-  image             String?
-  passwordHash      String?
-  role              UserRole      @default(CUSTOMER)
-  isBanned          Boolean       @default(false)
-  stripeCustomerId  String?
-  stripeConnectedId String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  accounts          Account[]
-  bookings          Booking[]     @relation("BookingCustomer")
-  ownedItems        Item[]        @relation("ItemOwner")
-  payouts           Payout[]      @relation("OwnerPayouts")
-  purchases         Purchase[]    @relation("PurchaseBuyer")
-  receivedMessages  Message[]     @relation("MessageRecipient")
-  reviewsWritten    Review[]      @relation("ReviewAuthor")
-  sentMessages      Message[]     @relation("MessageSender")
-  sessions          Session[]
-  transactions      Transaction[]
-  wishlists         Wishlist[]
+  emailVerified              DateTime?
+  image                      String?
+  passwordHash               String?
+  role                       UserRole           @default(CUSTOMER)
+  isBanned                   Boolean            @default(false)
+  stripeCustomerId           String?
+  stripeConnectedId          String?
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
+  accounts                   Account[]
+  bookings                   Booking[]          @relation("BookingCustomer")
+  ownedItems                 Item[]             @relation("ItemOwner")
+  ownedProducts              Product[]          @relation("ProductSeller")
+  orders                     Order[]            @relation("OrderCustomer")
+  addresses                  Address[]          @relation("AddressUser")
+  wishlistItems              WishlistItem[]
+  receivedMessages           Message[]          @relation("MessageRecipient")
+  reviewsWritten             Review[]           @relation("ReviewAuthor")
+  sentMessages               Message[]          @relation("MessageSender")
+  sessions                   Session[]
+  transactions               Transaction[]
+  wishlists                  Wishlist[]
+  payouts                    Payout[]           @relation("OwnerPayouts")
+  purchases                  Purchase[]         @relation("PurchaseBuyer")
 }
 
 model Item {
@@ -91,37 +96,37 @@ model AvailabilityBlock {
 }
 
 model Booking {
-  id                String        @id @default(cuid())
-  itemId            String
-  customerId        String
-  startDate         DateTime
-  endDate           DateTime
-  days              Int
-  rentalAmount      Int
-  securityDeposit   Int
-  lateFeeAmount     Int           @default(0)
-  commissionAmount  Int
-  ownerPayoutAmount Int
-  status            BookingStatus @default(PENDING)
-  fulfillmentMethod FulfillmentMethod?
-  fulfillmentAddress String?
-  paymentMethod     PaymentMethod?
-  mpesaPhone        String?
+  id                     String             @id @default(cuid())
+  itemId                 String
+  customerId             String
+  startDate              DateTime
+  endDate                DateTime
+  days                   Int
+  rentalAmount           Int
+  securityDeposit        Int
+  lateFeeAmount          Int                @default(0)
+  commissionAmount       Int
+  ownerPayoutAmount      Int
+  status                 BookingStatus      @default(PENDING)
+  fulfillmentMethod      FulfillmentMethod?
+  fulfillmentAddress     String?
+  paymentMethod          PaymentMethod?
+  mpesaPhone             String?
   mpesaCheckoutRequestId String?
   mpesaMerchantRequestId String?
-  mpesaReceiptNumber String?
-  mpesaResultCode   Int?
-  mpesaResultDesc   String?
-  paidAt            DateTime?
-  returnDate        DateTime?
-  damageReported    Boolean       @default(false)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  customer          User          @relation("BookingCustomer", fields: [customerId], references: [id])
-  item              Item          @relation(fields: [itemId], references: [id])
-  payout            Payout?
-  repairLogs        RepairLog[]
-  transactions      Transaction[]
+  mpesaReceiptNumber     String?
+  mpesaResultCode        Int?
+  mpesaResultDesc        String?
+  paidAt                 DateTime?
+  returnDate             DateTime?
+  damageReported         Boolean            @default(false)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  customer               User               @relation("BookingCustomer", fields: [customerId], references: [id])
+  item                   Item               @relation(fields: [itemId], references: [id])
+  payout                 Payout?
+  repairLogs             RepairLog[]
+  transactions           Transaction[]
 
   @@index([itemId, startDate, endDate])
 }
@@ -167,13 +172,15 @@ model RepairLog {
 
 model Review {
   id        String   @id @default(cuid())
-  itemId    String
+  itemId    String?
+  productId String?
   authorId  String
   rating    Int
   comment   String
   createdAt DateTime @default(now())
   author    User     @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item      Item?    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  product   Product? @relation("ProductReview", fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model CartItem {
@@ -189,18 +196,18 @@ model CartItem {
 }
 
 model Purchase {
-  id                    String         @id @default(cuid())
-  itemId                String
-  buyerId               String
-  amount                Int
-  commissionAmount      Int
+  id                      String         @id @default(cuid())
+  itemId                  String
+  buyerId                 String
+  amount                  Int
+  commissionAmount        Int
   stripeCheckoutSessionId String?
-  stripePaymentIntent   String?
-  status                PurchaseStatus @default(PAID)
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  buyer                 User           @relation("PurchaseBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
-  item                  Item           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  stripePaymentIntent     String?
+  status                  PurchaseStatus @default(PAID)
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+  buyer                   User           @relation("PurchaseBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  item                    Item           @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([buyerId, createdAt])
   @@index([itemId])
@@ -312,9 +319,235 @@ enum PurchaseStatus {
 enum PaymentMethod {
   CARD
   MPESA
+  PAYPAL
+  COD
 }
 
 enum FulfillmentMethod {
   DELIVERY
   PICKUP
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  STRIPE
+  MPESA
+  PAYPAL
+  PAYSTACK
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  CANCELED
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  imageUrl  String?
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([slug])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  sellerId    String
+  categoryId  String?
+  slug        String   @unique
+  title       String
+  brand       String?
+  description String
+  basePrice   Int // minor units, default variant price when null
+  isPublished Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  stockAlert  Int      @default(5)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  seller        User             @relation("ProductSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  category      Category?        @relation(fields: [categoryId], references: [id])
+  variants      ProductVariant[]
+  images        ProductImage[]
+  reviews       Review[]         @relation("ProductReview")
+  orderItems    OrderItem[]
+  wishlistItems WishlistItem[]   @relation("WishlistItems")
+
+  @@index([sellerId])
+  @@index([categoryId])
+  @@index([slug])
+  @@index([isPublished])
+}
+
+model ProductVariant {
+  id        String   @id @default(cuid())
+  productId String
+  sku       String   @unique
+  size      String
+  color     String?
+  price     Int? // minor units override; null => product.basePrice
+  stock     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  storeCartItems StoreCartItem[]
+  orderItems     OrderItem[]
+
+  @@index([productId])
+  @@index([sku])
+  @@index([size, color])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model StoreCart {
+  id        String          @id @default(cuid())
+  userId    String?
+  sessionId String?
+  items     StoreCartItem[]
+  updatedAt DateTime        @updatedAt
+
+  @@unique([userId, sessionId])
+  @@index([userId])
+  @@index([sessionId])
+}
+
+model StoreCartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  variantId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  cart    StoreCart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, variantId])
+  @@index([cartId])
+  @@index([variantId])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String
+  status          OrderStatus @default(PENDING)
+  subtotal        Int // minor units
+  shipping        Int         @default(0)
+  tax             Int         @default(0)
+  total           Int // minor units
+  currency        String      @default("KES")
+  shippingAddress Json?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user     User        @relation("OrderCustomer", fields: [userId], references: [id])
+  items    OrderItem[]
+  payments Payment[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  productId   String
+  variantId   String?
+  productName String // snapshot
+  variantSku  String? // snapshot
+  quantity    Int
+  price       Int // minor units, snapshot
+  createdAt   DateTime @default(now())
+
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String
+  label      String   @default("home")
+  name       String
+  phone      String
+  line1      String
+  line2      String?
+  city       String
+  country    String   @default("KE")
+  postalCode String?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation("AddressUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isDefault])
+}
+
+model Payment {
+  id                String          @id @default(cuid())
+  orderId           String
+  provider          PaymentProvider
+  providerPaymentId String          @unique
+  status            PaymentStatus   @default(PENDING)
+  amount            Int // minor units
+  currency          String          @default("KES")
+  paidAt            DateTime?
+  rawResponse       Json?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([providerPaymentId])
+  @@index([status])
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation("WishlistItems", fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
 }

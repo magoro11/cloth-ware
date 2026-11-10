@@ -9,8 +9,10 @@ async function main() {
     update: { role: UserRole.ADMIN },
     create: {
       email: "admin@rewear.io",
+      emailLower: "admin@rewear.io",
       name: "ReWear Admin",
       role: UserRole.ADMIN,
+      emailVerified: new Date(),
       passwordHash: await hash("Admin12345!", 10),
     },
   });
@@ -20,8 +22,10 @@ async function main() {
     update: { role: UserRole.LENDER },
     create: {
       email: "lender@rewear.io",
+      emailLower: "lender@rewear.io",
       name: "Ava Laurent",
       role: UserRole.LENDER,
+      emailVerified: new Date(),
       passwordHash: await hash("Lender12345!", 10),
     },
   });

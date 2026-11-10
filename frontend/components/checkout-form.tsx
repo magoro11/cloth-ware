@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast-provider";
 import { formatCurrency } from "@/backend/lib/utils";
 import { z } from "zod";
+import { loadStripe } from "@stripe/stripe-js";
 
 const checkoutSchema = z.object({
   address1: z.string().min(1, "Address is required"),
@@ -23,6 +24,7 @@ export function CheckoutForm({ total }: CheckoutFormProps) {
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("stripe");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [mpesaPhone, setMpesaPhone] = useState("");
 
   async function placeOrder(formData: FormData) {
     setLoading(true);
@@ -47,10 +49,20 @@ export function CheckoutForm({ total }: CheckoutFormProps) {
       return;
     }
 
+    if (paymentMethod === "mpesa" && !mpesaPhone.trim()) {
+      setErrors({ mpesaPhone: "Phone number is required for M-Pesa" });
+      setLoading(false);
+      return;
+    }
+
     const res = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address: result.data, paymentMethod }),
+      body: JSON.stringify({ 
+        address: result.data, 
+        paymentMethod,
+        mpesaPhone: paymentMethod === "mpesa" ? mpesaPhone : undefined,
+      }),
     });
 
     const data = await res.json();
@@ -58,6 +70,24 @@ export function CheckoutForm({ total }: CheckoutFormProps) {
 
     if (!res.ok) {
       pushToast(data.error || "Unable to place order");
+      return;
+    }
+
+    if (paymentMethod === "stripe" && data.clientSecret) {
+      const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
+      if (stripe) {
+        const { error } = await stripe.confirmCardPayment(data.clientSecret);
+        if (error) {
+          pushToast(error.message || "Payment failed");
+          return;
+        }
+      }
+    } else if (paymentMethod === "paypal" && data.redirectUrl) {
+      window.location.href = data.redirectUrl;
+      return;
+    } else if (paymentMethod === "mpesa" && data.checkoutRequestId) {
+      pushToast("M-Pesa STK push sent. Please complete payment on your phone.");
+      router.push(`/checkout/success?orderId=${data.orderId}&pending=true`);
       return;
     }
 
@@ -101,6 +131,21 @@ export function CheckoutForm({ total }: CheckoutFormProps) {
           </label>
         ))}
       </div>
+
+      {paymentMethod === "mpesa" && (
+        <div className="mt-3">
+          <label className="block text-sm mb-1">M-Pesa Phone Number</label>
+          <input
+            name="mpesaPhone"
+            type="tel"
+            value={mpesaPhone}
+            onChange={(e) => setMpesaPhone(e.target.value)}
+            placeholder="2547XXXXXXXX or 07XXXXXXXX"
+            className={`w-full rounded-lg border px-3 py-2 text-sm dark:border-white/10 ${errors.mpesaPhone ? "border-red-500" : "border-black/10"}`}
+          />
+          {errors.mpesaPhone ? <p className="mt-1 text-xs text-red-500">{errors.mpesaPhone}</p> : null}
+        </div>
+      )}
 
       <button
         type="submit"

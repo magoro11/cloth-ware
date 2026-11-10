@@ -6,6 +6,16 @@ import { z } from "zod";
 import { compare } from "bcryptjs";
 import type { NextAuthConfig } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
+
+const DUMMY_HASH =
+  "$2b$12$rRjZYQ7VdJ1yQq7VdJ1yQO7VdJ1yQO7VdJ1yQO7VdJ1yQO7VdJ1yQ";
+
+function clientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return request.headers.get("x-real-ip") ?? "unknown";
+}
 
 const prismaAny = prisma as any;
 
@@ -30,7 +40,7 @@ if (process.env.NODE_ENV === "production" && !authSecret) {
 const config: NextAuthConfig = {
   secret: authSecret,
   basePath: "/api/auth",
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 60 * 15 },
   pages: {
     signIn: "/auth/signin",
   },
@@ -50,7 +60,7 @@ const config: NextAuthConfig = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      authorize: async (raw) => {
+      authorize: async (raw, request) => {
         const input = z
           .object({
             email: z.string().email(),
@@ -59,17 +69,28 @@ const config: NextAuthConfig = {
           .safeParse(raw);
 
         if (!input.success) return null;
+
+        const ip = clientIp(request);
+        const limited = rateLimit(`auth:signin:${ip}`, { limit: 10, windowMs: 60 * 60 * 1000 });
+        if (!limited.success) return null;
+
         const normalizedEmail = input.data.email.trim().toLowerCase();
         let user;
         try {
           user = await prismaAny.user.findFirst({
-            where: { email: { equals: normalizedEmail, mode: "insensitive" } },
+            where: { emailLower: { equals: normalizedEmail } },
           });
         } catch (error) {
           console.error("Credentials lookup failed", error);
           return null;
         }
-        if (!user?.passwordHash || user.isBanned) return null;
+
+        if (!user) {
+          await compare(input.data.password, DUMMY_HASH);
+          return null;
+        }
+
+        if (!user.passwordHash || user.isBanned || !user.emailVerified) return null;
 
         try {
           const isValid = await compare(input.data.password, user.passwordHash);
@@ -84,6 +105,7 @@ const config: NextAuthConfig = {
           name: user.name,
           image: user.image,
           role: user.role,
+          stripeConnectedId: user.stripeConnectedId,
         };
       },
     }),
@@ -92,8 +114,9 @@ const config: NextAuthConfig = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        const role = (user as { role?: "CUSTOMER" | "LENDER" | "ADMIN" }).role;
+        const role = (user as { role?: "CUSTOMER" | "LENDER" | "ADMIN"; stripeConnectedId?: string | null }).role;
         token.role = role ?? "CUSTOMER";
+        token.stripeConnectedId = (user as { stripeConnectedId?: string | null }).stripeConnectedId ?? null;
       }
       return token;
     },
@@ -101,6 +124,7 @@ const config: NextAuthConfig = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = (token.role as "CUSTOMER" | "LENDER" | "ADMIN") || "CUSTOMER";
+        session.user.stripeConnectedId = token.stripeConnectedId ?? null;
       }
       return session;
     },

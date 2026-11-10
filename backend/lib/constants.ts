@@ -27,12 +27,16 @@ export const FEATURED_BRANDS = [
   "Apple",
   "Nike",
   "Adidas",
-  "Zara",
-  "H&M",
-  "Gucci",
-  "Prada",
+  "Tecno",
+  "Infinix",
+  "Oppo",
+  "Xiaomi",
   "LG",
   "Sony",
+  "HP",
+  "Dell",
+  "Lenovo",
+  "ASUS",
 ] as const;
 
 export const CONDITIONS = ["NEW", "EXCELLENT", "GOOD"] as const;

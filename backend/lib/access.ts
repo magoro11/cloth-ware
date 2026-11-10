@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 export async function requireUser() {
   const session = await auth();
@@ -11,10 +11,35 @@ export async function requireUser() {
 
 export async function requireRole(roles: Array<"CUSTOMER" | "LENDER" | "ADMIN">) {
   const user = await requireUser();
-  if (!roles.includes(user.role)) {
+  const fresh = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { role: true, isBanned: true },
+  });
+  if (!fresh || fresh.isBanned) {
     throw new AuthError("Forbidden", 403);
   }
-  return user;
+  if (!roles.includes(fresh.role)) {
+    throw new AuthError("Forbidden", 403);
+  }
+  return { ...user, role: fresh.role, isBanned: fresh.isBanned };
+}
+
+export async function adminAction<T>(fn: () => Promise<T>): Promise<T> {
+  await requireRole(["ADMIN"]);
+  return fn();
+}
+
+export async function protectedAction<T>(fn: () => Promise<T>): Promise<T> {
+  await requireUser();
+  return fn();
+}
+
+export async function roleAction<T>(
+  roles: Array<"CUSTOMER" | "LENDER" | "ADMIN">,
+  fn: () => Promise<T>,
+): Promise<T> {
+  await requireRole(roles);
+  return fn();
 }
 
 export class AuthError extends Error {

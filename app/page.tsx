@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { Prisma } from "@prisma/client";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
-import { APP_TAGLINE, CATEGORIES, FEATURED_BRANDS } from "@/lib/constants";
+import { APP_TAGLINE, CATEGORIES, FEATURED_BRANDS, LEGACY_CATEGORY_MAP } from "@/lib/constants";
 import { ItemCard } from "@/frontend/components/item-card";
 import { ClientFlashSaleCountdown } from "@/frontend/components/client-flash-sale-countdown";
 
@@ -100,7 +100,7 @@ export default async function Home() {
             <form action="/marketplace" className="flex items-center gap-3">
               <input
                 name="q"
-                placeholder="Search for clothes, shoes, brands..."
+                placeholder="Search electronics, fashion, phones, home..."
                 className="w-full rounded-full border border-white/20 bg-white/10 px-4 py-3 text-sm outline-none placeholder:text-white/60"
               />
               <button className="shrink-0 rounded-full bg-[#c25e30] px-5 py-3 text-sm font-semibold hover:bg-[#a84d26]">Search</button>
@@ -131,7 +131,7 @@ export default async function Home() {
               className="group flex flex-col items-center gap-2 rounded-2xl border border-black/5 bg-white p-4 text-center transition hover:shadow-md dark:border-white/10 dark:bg-[#151822]"
             >
               <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-black/5 dark:bg-white/5">
-                <Image src={categoryImages[category] ?? categoryImages.Women} alt={category} fill className="object-cover" />
+                <Image src={categoryImages[category] ?? categoryImages.Electronics} alt={category} fill className="object-cover" />
               </div>
               <span className="text-xs font-medium">{category}</span>
             </Link>
