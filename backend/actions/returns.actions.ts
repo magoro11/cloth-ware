@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireUser, AuthError } from "@/lib/access";
+import { formatCurrency } from "@/backend/lib/utils";
 import { prisma } from "@/lib/prisma";
 
 const returnRequestSchema = z.object({
@@ -24,7 +25,12 @@ export async function createReturnRequest(input: z.infer<typeof returnRequestSch
   if (!order) throw new AuthError("Order not found", 404);
   if (order.userId !== user.id) throw new AuthError("Forbidden", 403);
 
-  // If subOrderId provided, verify it belongs to this order
+  // Order must be delivered before a return can be requested
+  if (order.status !== "DELIVERED") {
+    return { error: "Can only request return for delivered orders" };
+  }
+
+  // If subOrderId provided, verify it belongs to this order and is delivered
   if (parsed.subOrderId) {
     const subOrder = await prisma.subOrder.findUnique({
       where: { id: parsed.subOrderId },
@@ -95,10 +101,20 @@ export async function requestRefund(input: z.infer<typeof refundRequestSchema>) 
 
   const order = await prisma.order.findUnique({
     where: { id: parsed.orderId },
-    select: { id: true, userId: true, status: true },
+    select: { id: true, userId: true, status: true, total: true },
   });
   if (!order) throw new AuthError("Order not found", 404);
   if (order.userId !== user.id) throw new AuthError("Forbidden", 403);
+
+  // Order must be delivered before a refund can be requested
+  if (order.status !== "DELIVERED") {
+    return { error: "Can only request refund for delivered orders" };
+  }
+
+  // Refund amount cannot exceed order total
+  if (parsed.amount > order.total) {
+    return { error: `Refund amount cannot exceed ${formatCurrency(order.total)}` };
+  }
 
   const existing = await prisma.refund.findFirst({
     where: {
