@@ -196,6 +196,22 @@ export default async function ProductDetailPage(props: { params: Promise<{ id: s
                     </div>
                   </div>
                 )}
+                {(Array.from(new Set(product.variants.map((v: any) => v.fabric))) as string[]).filter(Boolean).length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-black/60 dark:text-white/60">Fabric</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(Array.from(new Set(product.variants.map((v: any) => v.fabric))) as string[]).filter(Boolean).map((fabric) => (
+                        <button
+                          key={fabric}
+                          type="button"
+                          className="rounded-lg border border-black/10 px-3 py-1.5 text-sm hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+                        >
+                          {fabric}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -225,6 +241,10 @@ export default async function ProductDetailPage(props: { params: Promise<{ id: s
           <div className="rounded-2xl border border-black/5 p-4 dark:border-white/10">
             <h3 className="text-sm font-semibold text-black dark:text-white">Product Details</h3>
             <dl className="mt-3 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <dt className="text-black/60 dark:text-white/60">Garment Type</dt>
+                <dd className="font-medium text-black dark:text-white">{product.garmentType || "—"}</dd>
+              </div>
               <div className="flex justify-between">
                 <dt className="text-black/60 dark:text-white/60">Category</dt>
                 <dd className="font-medium text-black dark:text-white">{product.category?.name || "General"}</dd>

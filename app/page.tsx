@@ -59,29 +59,31 @@ export default async function Home() {
   }
 
   const categoryImages: Record<string, string> = {
-    Electronics: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&q=80",
-    Fashion: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&q=80",
-    "Phones & Tablets": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80",
-    "Home & Living": "https://images.unsplash.com/photo-1484101403633-562f891dc89a?w=400&q=80",
-    "Beauty & Health": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=400&q=80",
-    Supermarket: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80",
-    Computing: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&q=80",
-    Gaming: "https://images.unsplash.com/photo-1542751371-adc3840a45e5?w=400&q=80",
-    "Sports & Outdoors": "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=400&q=80",
-    Automotive: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&q=80",
+    Dresses: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&q=80",
+    "Shirts & Blouses": "https://images.unsplash.com/photo-1596756028547-a88e0a9ad798?w=400&q=80",
+    "Trousers & Jeans": "https://images.unsplash.com/photo-1542273917363-3b182515e699?w=400&q=80",
+    "Skirts & Shorts": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80",
+    "Jackets & Coats": "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=400&q=80",
+    "Suits & Blazers": "https://images.unsplash.com/photo-1594083390129-1a570a44a348?w=400&q=80",
+    "Traditional Wear": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&q=80",
+    Activewear: "https://images.unsplash.com/photo-1517836357463-d25dfea34404?w=400&q=80",
+    "Lingerie & Sleepwear": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80",
+    Accessories: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&q=80",
+    "Fabrics & Textiles": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&q=80",
   };
 
   const categoryHeroImages: Record<string, string> = {
-    Electronics: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800&q=80",
-    Fashion: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&q=80",
-    "Phones & Tablets": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80",
-    "Home & Living": "https://images.unsplash.com/photo-1484101403633-562f891dc89a?w=800&q=80",
-    "Beauty & Health": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=800&q=80",
-    Supermarket: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80",
-    Computing: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&q=80",
-    Gaming: "https://images.unsplash.com/photo-1542751371-adc3840a45e5?w=800&q=80",
-    "Sports & Outdoors": "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80",
-    Automotive: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&q=80",
+    Dresses: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&q=80",
+    "Shirts & Blouses": "https://images.unsplash.com/photo-1596756028547-a88e0a9ad798?w=800&q=80",
+    "Trousers & Jeans": "https://images.unsplash.com/photo-1542273917363-3b182515e699?w=800&q=80",
+    "Skirts & Shorts": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&q=80",
+    "Jackets & Coats": "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=800&q=80",
+    "Suits & Blazers": "https://images.unsplash.com/photo-1594083390129-1a570a44a348?w=800&q=80",
+    "Traditional Wear": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&q=80",
+    Activewear: "https://images.unsplash.com/photo-1517836357463-d25dfea34404?w=800&q=80",
+    "Lingerie & Sleepwear": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&q=80",
+    Accessories: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80",
+    "Fabrics & Textiles": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&q=80",
   };
 
   const heroImage = categoryHeroImages[CATEGORIES[0]];
@@ -100,14 +102,14 @@ export default async function Home() {
             <form action="/marketplace" className="flex items-center gap-3">
               <input
                 name="q"
-                placeholder="Search electronics, fashion, phones, home..."
+                placeholder="Search clothes, fashion, brands..."
                 className="w-full rounded-full border border-white/20 bg-white/10 px-4 py-3 text-sm outline-none placeholder:text-white/60"
               />
               <button className="shrink-0 rounded-full bg-[#c25e30] px-5 py-3 text-sm font-semibold hover:bg-[#a84d26]">Search</button>
             </form>
             <div className="flex flex-wrap gap-3 pt-2">
-              <Link href="/marketplace?category=Fashion" className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90">
-                Shop Fashion <ArrowRight className="size-4" />
+              <Link href="/marketplace?category=Dresses" className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90">
+                Shop Dresses <ArrowRight className="size-4" />
               </Link>
               <Link href="/marketplace" className="rounded-full border border-white/25 px-5 py-3 text-sm font-medium hover:bg-white/10">
                 Explore All
@@ -131,7 +133,7 @@ export default async function Home() {
               className="group flex flex-col items-center gap-2 rounded-2xl border border-black/5 bg-white p-4 text-center transition hover:shadow-md dark:border-white/10 dark:bg-[#151822]"
             >
               <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-black/5 dark:bg-white/5">
-                <Image src={categoryImages[category] ?? categoryImages.Electronics} alt={category} fill className="object-cover" />
+                <Image src={categoryImages[category] ?? categoryImages.Dresses} alt={category} fill className="object-cover" />
               </div>
               <span className="text-xs font-medium">{category}</span>
             </Link>
@@ -248,7 +250,7 @@ export default async function Home() {
               className="group flex flex-col items-center gap-2 rounded-2xl border border-black/5 bg-white p-3 text-center transition hover:shadow-md dark:border-white/10 dark:bg-[#151822]"
             >
               <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-black/5 dark:bg-white/5">
-                <Image src={categoryImages[category] ?? categoryImages.Electronics} alt={category} fill className="object-cover" />
+                <Image src={categoryImages[category] ?? categoryImages.Dresses} alt={category} fill className="object-cover" />
               </div>
               <span className="text-[11px] font-medium leading-tight">{category}</span>
             </Link>

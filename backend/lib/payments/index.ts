@@ -144,7 +144,7 @@ async function processPayPalPayment(request: PaymentRequest): Promise<PaymentRes
       application_context: {
         return_url: request.returnUrl || `${process.env.NEXT_PUBLIC_APP_URL}/checkout/success`,
         cancel_url: request.cancelUrl || `${process.env.NEXT_PUBLIC_APP_URL}/checkout`,
-        brand_name: "ATELIER",
+        brand_name: "Cloth Marketplace",
         user_action: "PAY_NOW",
       },
     });

@@ -11,6 +11,7 @@ type InitialProduct = {
   id: string;
   title: string;
   brand: string | null;
+  garmentType: string | null;
   description: string;
   categoryId: string | null;
   basePrice: number;
@@ -21,6 +22,7 @@ type InitialProduct = {
     sku: string;
     size: string;
     color: string | null;
+    fabric: string | null;
     price: number | null;
     stock: number;
     isActive: boolean;
@@ -33,6 +35,7 @@ type VariantForm = {
   sku: string;
   size: string;
   color: string;
+  fabric: string;
   price: string;
   stock: string;
   isActive: boolean;
@@ -60,6 +63,7 @@ export function ListProductForm({ initialProduct }: { initialProduct?: InitialPr
         sku: v.sku,
         size: v.size,
         color: v.color || "",
+        fabric: v.fabric || "",
         price: v.price?.toString() || "",
         stock: v.stock.toString(),
         isActive: v.isActive,
@@ -69,11 +73,11 @@ export function ListProductForm({ initialProduct }: { initialProduct?: InitialPr
 
   // Add default variant if empty
   if (variants.length === 0) {
-    setVariants([{ sku: "", size: "M", color: "", price: "", stock: "0", isActive: true }]);
+    setVariants([{ sku: "", size: "M", color: "", fabric: "", price: "", stock: "0", isActive: true }]);
   }
 
   function addVariant() {
-    setVariants([...variants, { sku: "", size: "M", color: "", price: "", stock: "0", isActive: true }]);
+    setVariants([...variants, { sku: "", size: "M", color: "", fabric: "", price: "", stock: "0", isActive: true }]);
   }
 
   function removeVariant(index: number) {
@@ -121,6 +125,7 @@ export function ListProductForm({ initialProduct }: { initialProduct?: InitialPr
     const payload = {
       title: String(form.get("title")),
       brand: String(form.get("brand")),
+      garmentType: String(form.get("garmentType")) || null,
       description: String(form.get("description")),
       categoryId: String(form.get("categoryId")) || null,
       basePrice: Number(form.get("basePrice")),
@@ -132,6 +137,7 @@ export function ListProductForm({ initialProduct }: { initialProduct?: InitialPr
         sku: v.sku.trim(),
         size: v.size.trim(),
         color: v.color.trim() || null,
+        fabric: v.fabric.trim() || null,
         price: v.price ? Number(v.price) : null,
         stock: Number(v.stock),
         isActive: v.isActive,
@@ -327,6 +333,16 @@ export function ListProductForm({ initialProduct }: { initialProduct?: InitialPr
             placeholder="e.g. Nike"
           />
         </label>
+        <label className="text-sm">
+          Garment Type
+          <input
+            name="garmentType"
+            defaultValue={initialProduct?.garmentType ?? ""}
+            required
+            className="mt-1 w-full rounded-lg border border-black/15 bg-transparent p-2.5"
+            placeholder="e.g. Dress, Shirt, Jeans, Coat"
+          />
+        </label>
       </div>
 
       <label className="text-sm">
@@ -438,15 +454,25 @@ export function ListProductForm({ initialProduct }: { initialProduct?: InitialPr
                   />
                 </label>
 
-                <label className="text-sm">
-                  Color (optional)
-                  <input
-                    value={variant.color}
-                    onChange={(e) => updateVariant(idx, "color", e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-black/15 bg-transparent p-2.5"
-                    placeholder="e.g. Black, Navy, Red"
-                  />
-                </label>
+                  <label className="text-sm">
+                    Color (optional)
+                    <input
+                      value={variant.color}
+                      onChange={(e) => updateVariant(idx, "color", e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-black/15 bg-transparent p-2.5"
+                      placeholder="e.g. Black, Navy, Red"
+                    />
+                  </label>
+
+                  <label className="text-sm">
+                    Fabric (optional)
+                    <input
+                      value={variant.fabric}
+                      onChange={(e) => updateVariant(idx, "fabric", e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-black/15 bg-transparent p-2.5"
+                      placeholder="e.g. Cotton, Silk, Denim"
+                    />
+                  </label>
 
                 <div className="md:col-span-1">
                   <label className="flex items-center gap-2 text-sm">

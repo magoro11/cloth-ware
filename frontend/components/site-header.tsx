@@ -81,12 +81,11 @@ export function SiteHeader() {
       <div className="border-t border-white/10">
         <div className="mx-auto max-w-7xl px-4 md:px-8">
           <nav className="flex items-center gap-6 overflow-x-auto text-xs font-medium md:text-sm">
-            <Link href="/marketplace?category=Electronics" className="whitespace-nowrap py-2 text-white/90 hover:text-white">Electronics</Link>
-            <Link href="/marketplace?category=Fashion" className="whitespace-nowrap py-2 text-white/90 hover:text-white">Fashion</Link>
-            <Link href="/marketplace?category=Phones & Tablets" className="whitespace-nowrap py-2 text-white/90 hover:text-white">Phones & Tablets</Link>
-            <Link href="/marketplace?category=Home & Living" className="whitespace-nowrap py-2 text-white/90 hover:text-white">Home & Living</Link>
-            <Link href="/marketplace?category=Beauty & Health" className="whitespace-nowrap py-2 text-white/90 hover:text-white">Beauty & Health</Link>
-            <Link href="/marketplace?category=Supermarket" className="whitespace-nowrap py-2 text-white/90 hover:text-white">Supermarket</Link>
+            <Link href="/marketplace?category=Dresses" className="whitespace-nowrap py-2 text-white/90 hover:text-white">Dresses</Link>
+            <Link href="/marketplace?category=Shirts & Blouses" className="whitespace-nowrap py-2 text-white/90 hover:text-white">Shirts & Blouses</Link>
+            <Link href="/marketplace?category=Trousers & Jeans" className="whitespace-nowrap py-2 text-white/90 hover:text-white">Trousers & Jeans</Link>
+            <Link href="/marketplace?category=Jackets & Coats" className="whitespace-nowrap py-2 text-white/90 hover:text-white">Jackets & Coats</Link>
+            <Link href="/marketplace?category=Traditional Wear" className="whitespace-nowrap py-2 text-white/90 hover:text-white">Traditional Wear</Link>
             <Link href="/marketplace?category=Sale" className="whitespace-nowrap py-2 font-semibold text-[#F68B1E] hover:text-[#e07d18]">Sale</Link>
           </nav>
         </div>
@@ -108,7 +107,7 @@ export function SiteHeader() {
           </Link>
           <Link href="/list-item" className="flex min-w-[200px] items-center gap-3 rounded-xl border border-white/10 bg-black/80 p-3 text-white dark:border-white/10">
             <div>
-              <p className="text-xs font-semibold">Sell on ATELIER</p>
+              <p className="text-xs font-semibold">Sell on Cloth Marketplace</p>
               <p className="text-[11px] text-white/80">Start selling today</p>
             </div>
           </Link>

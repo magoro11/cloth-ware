@@ -18,6 +18,7 @@ type ProductCardProps = {
     id: string;
     title: string;
     brand: string;
+    garmentType?: string | null;
     images: { url: string }[];
     variants: { id: string; price: number | null; stock: number }[];
     basePrice: number;
@@ -115,6 +116,9 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
       <div className="mt-2 space-y-1">
         <p className="text-xs uppercase tracking-widest opacity-60 truncate">{product.brand}</p>
+        {product.garmentType && (
+          <p className="text-[10px] uppercase tracking-wider opacity-50 truncate">{product.garmentType}</p>
+        )}
         <p className="font-medium text-sm truncate">{product.title}</p>
         <p className="text-sm font-semibold text-[#c25e30]">{formatCurrency(minPrice)}</p>
       </div>

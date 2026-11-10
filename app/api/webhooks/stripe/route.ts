@@ -66,7 +66,7 @@ export async function POST(request: Request) {
           if (order?.user?.email) {
             void sendEmailNotification({
               to: order.user.email,
-              subject: "Your ATELIER order is confirmed",
+              subject: "Your Cloth Marketplace order is confirmed",
               html: `<h2>Order ${order.id} received</h2><p>Total: ${(order.total / 100).toFixed(2)} KES</p><p>We'll notify you when it ships.</p>`,
             });
           }
