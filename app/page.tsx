@@ -1,114 +1,123 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { Prisma } from "@prisma/client";
 import Image from "next/image";
-import { prisma } from "@/lib/prisma";
-import { APP_TAGLINE, CATEGORIES, FEATURED_BRANDS, LEGACY_CATEGORY_MAP } from "@/lib/constants";
-import { ItemCard } from "@/frontend/components/item-card";
-import { ClientFlashSaleCountdown } from "@/frontend/components/client-flash-sale-countdown";
+import { listProducts, type ProductSummary } from "@/backend/actions/catalog.actions";
+import { APP_TAGLINE } from "@/lib/constants";
+import { databaseErrorMessage, isDatabaseUnavailable, logDatabaseIssue } from "@/backend/lib/errors";
+
+const CATEGORIES = [
+  "Dresses",
+  "Shirts & Blouses",
+  "Trousers & Jeans",
+  "Skirts & Shorts",
+  "Jackets & Coats",
+  "Suits & Blazers",
+  "Traditional Wear",
+  "Activewear",
+  "Lingerie & Sleepwear",
+  "Accessories",
+  "Fabrics & Textiles",
+] as const;
+
+const FEATURED_BRANDS = [
+  "Zara",
+  "H&M",
+  "Nike",
+  "Adidas",
+  "Levi's",
+  "Tommy Hilfiger",
+  "Calvin Klein",
+  "Puma",
+  "Uniqlo",
+  "Mango",
+] as const;
+
+const categoryImages: Record<string, string> = {
+  Dresses: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&q=80",
+  "Shirts & Blouses": "https://images.unsplash.com/photo-1596756028547-a88e0a9ad798?w=400&q=80",
+  "Trousers & Jeans": "https://images.unsplash.com/photo-1542273917363-3b182515e699?w=400&q=80",
+  "Skirts & Shorts": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80",
+  "Jackets & Coats": "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=400&q=80",
+  "Suits & Blazers": "https://images.unsplash.com/photo-1594083390129-1a570a44a348?w=400&q=80",
+  "Traditional Wear": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&q=80",
+  Activewear: "https://images.unsplash.com/photo-1517836357463-d25dfea34404?w=400&q=80",
+  "Lingerie & Sleepwear": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80",
+  Accessories: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&q=80",
+  "Fabrics & Textiles": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&q=80",
+};
 
 export const dynamic = "force-dynamic";
-export const revalidate = 30;
+export const revalidate = 60;
 
-type ItemWithRelations = Prisma.ItemGetPayload<{
-  include: { images: true; reviews: true };
-}>;
-
-function pickImage(item: ItemWithRelations) {
-  return item.images.find((image) => image.url)?.url ?? null;
+function formatCurrency(cents: number) {
+  return new Intl.NumberFormat("en-KE", {
+    style: "currency",
+    currency: "KES",
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
 }
 
 export default async function Home() {
-  let topSelling: ItemWithRelations[] = [];
-  let newArrivals: ItemWithRelations[] = [];
-  let flashSale: ItemWithRelations[] = [];
-  let recommended: ItemWithRelations[] = [];
+  let featured: ProductSummary[] = [];
+  let newArrivals: ProductSummary[] = [];
+  let flashSale: ProductSummary[] = [];
+  let recommended: ProductSummary[] = [];
+  let dbError = false;
+  let dbErrorMessage = "Database is currently unavailable.";
 
   try {
-    [topSelling, newArrivals, flashSale, recommended] = await Promise.all([
-      prisma.item.findMany({
-        where: { featured: true, isAvailable: true },
-        include: { images: true, reviews: { take: 3, orderBy: { createdAt: "desc" } } },
-        orderBy: { reviews: { _count: "desc" } },
-        take: 12,
-      }),
-      prisma.item.findMany({
-        where: { featured: true, isAvailable: true },
-        include: { images: true, reviews: { take: 3, orderBy: { createdAt: "desc" } } },
-        orderBy: { createdAt: "desc" },
-        take: 12,
-      }),
-      prisma.item.findMany({
-        where: { featured: true, isAvailable: true, sellingPrice: { not: null } },
-        include: { images: true, reviews: { take: 3, orderBy: { createdAt: "desc" } } },
-        orderBy: { createdAt: "asc" },
-        take: 12,
-      }),
-      prisma.item.findMany({
-        where: { isAvailable: true },
-        include: { images: true, reviews: { take: 3, orderBy: { createdAt: "desc" } } },
-        orderBy: { createdAt: "desc" },
-        take: 15,
-      }),
+    const [featuredResult, newArrivalsResult, flashSaleResult, recommendedResult] = await Promise.all([
+      listProducts({ sort: "popularity", page: 1, pageSize: 12 }),
+      listProducts({ sort: "newest", page: 1, pageSize: 12 }),
+      listProducts({ sort: "newest", page: 1, pageSize: 12 }),
+      listProducts({ sort: "rating", page: 1, pageSize: 12 }),
     ]);
-  } catch {
-    topSelling = [];
-    newArrivals = [];
-    flashSale = [];
-    recommended = [];
+    featured = featuredResult.products;
+    newArrivals = newArrivalsResult.products;
+    flashSale = flashSaleResult.products;
+    recommended = recommendedResult.products;
+  } catch (error) {
+    dbError = isDatabaseUnavailable(error);
+    dbErrorMessage = databaseErrorMessage(error);
+    logDatabaseIssue("Home page database query failed", error);
   }
 
-  const categoryImages: Record<string, string> = {
-    Dresses: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&q=80",
-    "Shirts & Blouses": "https://images.unsplash.com/photo-1596756028547-a88e0a9ad798?w=400&q=80",
-    "Trousers & Jeans": "https://images.unsplash.com/photo-1542273917363-3b182515e699?w=400&q=80",
-    "Skirts & Shorts": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80",
-    "Jackets & Coats": "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=400&q=80",
-    "Suits & Blazers": "https://images.unsplash.com/photo-1594083390129-1a570a44a348?w=400&q=80",
-    "Traditional Wear": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&q=80",
-    Activewear: "https://images.unsplash.com/photo-1517836357463-d25dfea34404?w=400&q=80",
-    "Lingerie & Sleepwear": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80",
-    Accessories: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&q=80",
-    "Fabrics & Textiles": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&q=80",
-  };
-
-  const categoryHeroImages: Record<string, string> = {
-    Dresses: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&q=80",
-    "Shirts & Blouses": "https://images.unsplash.com/photo-1596756028547-a88e0a9ad798?w=800&q=80",
-    "Trousers & Jeans": "https://images.unsplash.com/photo-1542273917363-3b182515e699?w=800&q=80",
-    "Skirts & Shorts": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&q=80",
-    "Jackets & Coats": "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=800&q=80",
-    "Suits & Blazers": "https://images.unsplash.com/photo-1594083390129-1a570a44a348?w=800&q=80",
-    "Traditional Wear": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&q=80",
-    Activewear: "https://images.unsplash.com/photo-1517836357463-d25dfea34404?w=800&q=80",
-    "Lingerie & Sleepwear": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&q=80",
-    Accessories: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80",
-    "Fabrics & Textiles": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&q=80",
-  };
-
-  const heroImage = categoryHeroImages[CATEGORIES[0]];
-  const featuredImage = heroImage ?? pickImage(newArrivals[0] ?? topSelling[0]);
+  const featuredImage =
+    featured[0]?.images[0]?.url ??
+    newArrivals[0]?.images[0]?.url ??
+    "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80";
 
   return (
     <main className="mx-auto max-w-7xl md:px-8">
+      {dbError ? (
+        <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          {dbErrorMessage} Please check <code>DATABASE_URL</code> in Vercel and confirm the database is online.
+        </div>
+      ) : null}
+
       <section className="relative mx-4 mt-4 overflow-hidden rounded-2xl border border-black/5 bg-black/90 text-white md:mx-0 md:mt-6">
         <div className="grid gap-6 md:grid-cols-2 md:items-center">
           <div className="space-y-4 p-6 md:p-10">
             <p className="text-xs font-semibold uppercase tracking-widest text-white/70">New season</p>
             <h1 className="font-serif text-4xl leading-tight md:text-6xl">{APP_TAGLINE}</h1>
             <p className="max-w-md text-sm leading-7 text-white/75">
-              Shop the latest trends with free delivery on orders over $100. Pay on delivery available.
+              Shop the latest trends with free delivery on orders over KES 5,000. Pay on delivery available.
             </p>
             <form action="/marketplace" className="flex items-center gap-3">
               <input
                 name="q"
-                placeholder="Search clothes, fashion, brands..."
+                placeholder="Search products, brands..."
                 className="w-full rounded-full border border-white/20 bg-white/10 px-4 py-3 text-sm outline-none placeholder:text-white/60"
               />
-              <button className="shrink-0 rounded-full bg-[#c25e30] px-5 py-3 text-sm font-semibold hover:bg-[#a84d26]">Search</button>
+              <button className="shrink-0 rounded-full bg-[#c25e30] px-5 py-3 text-sm font-semibold hover:bg-[#a84d26]">
+                Search
+              </button>
             </form>
             <div className="flex flex-wrap gap-3 pt-2">
-              <Link href="/marketplace?category=Dresses" className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90">
+              <Link
+                href="/marketplace?category=Dresses"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90"
+              >
                 Shop Dresses <ArrowRight className="size-4" />
               </Link>
               <Link href="/marketplace" className="rounded-full border border-white/25 px-5 py-3 text-sm font-medium hover:bg-white/10">
@@ -116,11 +125,9 @@ export default async function Home() {
               </Link>
             </div>
           </div>
-          {featuredImage ? (
-            <div className="relative hidden aspect-[4/3] md:block">
-              <Image src={featuredImage} alt="New arrival" fill className="object-cover" />
-            </div>
-          ) : null}
+          <div className="relative hidden aspect-[4/3] md:block">
+            <Image src={featuredImage} alt="New arrival" fill className="object-cover" />
+          </div>
         </div>
       </section>
 
@@ -144,12 +151,14 @@ export default async function Home() {
       <section className="mx-4 mt-10 md:mx-0">
         <div className="flex items-center justify-between">
           <h2 className="font-serif text-2xl">Top Selling</h2>
-          <Link href="/marketplace" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">See All</Link>
+          <Link href="/marketplace" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">
+            See All
+          </Link>
         </div>
         <div className="mt-4 flex gap-4 overflow-x-auto pb-4 md:mx-0">
-          {topSelling.map((item) => (
+          {featured.map((item) => (
             <div key={item.id} className="min-w-[260px] max-w-[260px] snap-start">
-              <ItemCard item={item} />
+              <ProductCardPreview item={item} />
             </div>
           ))}
         </div>
@@ -159,14 +168,15 @@ export default async function Home() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="font-serif text-2xl">Flash Sale</h2>
-            <ClientFlashSaleCountdown />
           </div>
-          <Link href="/marketplace?category=Sale" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">See All</Link>
+          <Link href="/marketplace?sort=popularity" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">
+            See All
+          </Link>
         </div>
         <div className="mt-4 flex gap-4 overflow-x-auto pb-4 md:mx-0">
           {flashSale.map((item) => (
             <div key={item.id} className="min-w-[260px] max-w-[260px] snap-start">
-              <ItemCard item={item} />
+              <ProductCardPreview item={item} />
             </div>
           ))}
         </div>
@@ -175,11 +185,13 @@ export default async function Home() {
       <section className="mx-4 mt-10 md:mx-0">
         <div className="flex items-center justify-between">
           <h2 className="font-serif text-2xl">New Arrivals</h2>
-          <Link href="/marketplace" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">See All</Link>
+          <Link href="/marketplace" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">
+            See All
+          </Link>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
           {newArrivals.slice(0, 10).map((item) => (
-            <ItemCard key={item.id} item={item} />
+            <ProductCardPreview key={item.id} item={item} />
           ))}
         </div>
       </section>
@@ -189,11 +201,11 @@ export default async function Home() {
           <div className="grid gap-6 md:grid-cols-2 md:items-center">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-white/80">Flash Sale</p>
-              <h2 className="mt-2 font-serif text-3xl md:text-4xl">Today&apos;s Best Deals</h2>
+              <h2 className="mt-2 font-serif text-3xl md:text-4xl">Today&rsquo;s Best Deals</h2>
               <p className="mt-3 text-sm leading-7 text-white/80">
                 Grab these limited-time offers before they are gone. Free delivery on selected items.
               </p>
-              <Link href="/marketplace?category=Sale" className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90">
+              <Link href="/marketplace?sort=popularity" className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90">
                 Shop Deals <ArrowRight className="size-4" />
               </Link>
             </div>
@@ -221,26 +233,10 @@ export default async function Home() {
 
       <section className="mx-4 mt-10 md:mx-0">
         <div className="flex items-center justify-between">
-          <h2 className="font-serif text-2xl">What Our Customers Say</h2>
-        </div>
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          {[
-            { name: "Grace N.", text: "Fast delivery and authentic products. Best marketplace experience!" },
-            { name: "James K.", text: "Great prices and excellent customer service. Highly recommended." },
-            { name: "Amina H.", text: "Easy checkout process and secure payments. Love shopping here." },
-          ].map((review) => (
-            <div key={review.name} className="rounded-2xl border border-black/5 bg-white p-5 dark:border-white/10 dark:bg-[#151822]">
-              <p className="text-sm leading-7 text-black/80 dark:text-white/80">&ldquo;{review.text}&rdquo;</p>
-              <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-black/60 dark:text-white/60">- {review.name}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-4 mt-10 md:mx-0">
-        <div className="flex items-center justify-between">
           <h2 className="font-serif text-2xl">Shop by Category</h2>
-          <Link href="/marketplace" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">See All</Link>
+          <Link href="/marketplace" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">
+            See All
+          </Link>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-3 md:grid-cols-5 lg:grid-cols-10">
           {CATEGORIES.map((category) => (
@@ -264,7 +260,7 @@ export default async function Home() {
         </div>
         <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
           {recommended.slice(0, 10).map((item) => (
-            <ItemCard key={item.id} item={item} />
+            <ProductCardPreview key={item.id} item={item} />
           ))}
         </div>
       </section>
@@ -272,30 +268,15 @@ export default async function Home() {
       <section className="mx-4 mt-10 md:mx-0">
         <div className="flex items-center justify-between">
           <h2 className="font-serif text-2xl">Best Sellers</h2>
-          <Link href="/marketplace" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">See All</Link>
+          <Link href="/marketplace" className="text-sm font-semibold text-[#c25e30] hover:opacity-70">
+            See All
+          </Link>
         </div>
         <div className="mt-4 flex gap-4 overflow-x-auto pb-4 md:mx-0">
-          {topSelling.map((item) => (
+          {featured.map((item) => (
             <div key={item.id} className="min-w-[260px] max-w-[260px] snap-start">
-              <ItemCard item={item} />
+              <ProductCardPreview item={item} />
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-4 mt-10 md:mx-0">
-        <div className="flex items-center justify-between">
-          <h2 className="font-serif text-2xl">Brands We Love</h2>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {FEATURED_BRANDS.map((brand) => (
-            <Link
-              key={brand}
-              href={`/marketplace?q=${encodeURIComponent(brand)}`}
-              className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-medium text-black/70 transition hover:bg-black hover:text-white dark:border-white/10 dark:bg-white/5 dark:text-white/70"
-            >
-              {brand}
-            </Link>
           ))}
         </div>
       </section>
@@ -304,10 +285,12 @@ export default async function Home() {
         <div className="rounded-2xl border border-black/5 bg-white/80 p-6 dark:border-white/10 dark:bg-white/5 md:p-10">
           <div className="grid gap-8 md:grid-cols-2 md:items-center">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-black/60 dark:text-white/60">Free delivery</p>
-              <h2 className="mt-2 font-serif text-3xl md:text-4xl">Free shipping on orders over $100</h2>
+              <p className="text-xs font-semibold uppercase tracking-widest text-black/60 dark:text-white/60">
+                Free delivery
+              </p>
+              <h2 className="mt-2 font-serif text-3xl md:text-4xl">Free shipping on orders over KES 5,000</h2>
               <p className="mt-3 text-sm leading-7 text-black/70 dark:text-white/72">
-                Enjoy free delivery on all orders above $100. Return items within 30 days if you are not satisfied.
+                Enjoy free delivery on all orders above KES 5,000. Return items within 30 days if you are not satisfied.
               </p>
               <div className="mt-4 flex flex-wrap gap-4 text-sm font-medium text-black/70 dark:text-white/70">
                 <span>• Pay on delivery</span>
@@ -354,11 +337,80 @@ export default async function Home() {
                 className="flex-1 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm outline-none placeholder:text-white/60"
                 required
               />
-              <button className="rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90">Subscribe</button>
+              <button className="rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90">
+                Subscribe
+              </button>
             </form>
           </div>
         </div>
       </section>
     </main>
+  );
+}
+
+function ProductCardPreview({ item }: { item: ProductSummary }) {
+  const primaryImage = item.images[0]?.url ?? null;
+  const discount =
+    item.basePrice > item.minPrice
+      ? Math.round(((item.basePrice - item.minPrice) / item.basePrice) * 100)
+      : null;
+
+  return (
+    <div className="group flex flex-col">
+      <Link href={`/product/${item.slug}`} className="block overflow-hidden rounded-2xl border border-black/5 bg-white transition hover:shadow-lg dark:border-white/10 dark:bg-[#151822]">
+        <div className="relative aspect-square overflow-hidden bg-black/5 dark:bg-white/5">
+          {primaryImage ? (
+            <img
+              src={primaryImage}
+              alt={item.title}
+              className="object-cover transition duration-500 group-hover:scale-105"
+              loading="lazy"
+            />
+          ) : (
+            <div className="grid h-full place-content-center text-sm opacity-60">No image</div>
+          )}
+          {discount && (
+            <span className="absolute left-2 top-2 rounded-full bg-[#c25e30] px-2 py-1 text-[11px] font-semibold text-white">
+              -{discount}%
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-1 flex-col gap-1.5 p-3">
+          <p className="text-[11px] uppercase tracking-widest opacity-60">{item.vendorName}</p>
+          <h3 className="line-clamp-2 text-sm font-medium">{item.title}</h3>
+
+          <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+            <div className="flex items-baseline gap-2">
+              <p className="text-base font-semibold text-[#c25e30]">{formatCurrency(item.minPrice)}</p>
+              {item.basePrice > item.minPrice && (
+                <p className="text-[11px] line-through opacity-60">{formatCurrency(item.basePrice)}</p>
+              )}
+            </div>
+            {item.averageRating ? (
+              <div className="flex flex-col items-end gap-0.5">
+                <div className="flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      className={`size-3 ${
+                        star <= Math.round(item.averageRating ?? 0)
+                          ? "fill-[#ffbf00] text-[#ffbf00]"
+                          : "text-black/20"
+                      }`}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+                <span className="text-[10px] font-medium text-black/60 dark:text-white/60">
+                  ({item.reviewCount})
+                </span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </Link>
+    </div>
   );
 }

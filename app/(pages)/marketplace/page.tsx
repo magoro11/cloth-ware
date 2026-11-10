@@ -1,39 +1,21 @@
-import { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { Search, X } from "lucide-react";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
-import { CATEGORIES, FEATURED_BRANDS, LEGACY_CATEGORY_MAP } from "@/lib/constants";
-import { ItemCard } from "@/frontend/components/item-card";
+import { listProducts, type ListProductsInput, type ProductSummary } from "@/backend/actions/catalog.actions";
+import { getFilterOptions, type FilterOptions } from "@/backend/actions/catalog.actions";
+import { formatCurrency } from "@/backend/lib/utils";
 import { databaseErrorMessage, isDatabaseUnavailable, logDatabaseIssue } from "@/backend/lib/errors";
-import { isPrismaUnknownFieldError } from "@/lib/prisma-compat";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const prismaAny = prisma as any;
-
-export const dynamic = "force-dynamic";
-export const revalidate = 60;
-
-type ItemWithRelations = Prisma.ItemGetPayload<{
-  include: {
-    images: true;
-    owner: { select: { role: true } };
-    reviews: true;
-  };
-}>;
+const PAGE_SIZE = 24;
 
 type SearchParams = Promise<{
   category?: string;
-  size?: string;
   brand?: string;
   q?: string;
   minPrice?: string;
   maxPrice?: string;
-  sort?: "latest" | "price_asc" | "price_desc" | "popularity";
+  sort?: "popularity" | "newest" | "price_asc" | "price_desc" | "rating";
   page?: string;
 }>;
-
-const PAGE_SIZE = 24;
 
 function buildPageHref(searchParams: Awaited<SearchParams>, page: number) {
   const params = new URLSearchParams();
@@ -46,122 +28,52 @@ function buildPageHref(searchParams: Awaited<SearchParams>, page: number) {
 
 export default async function MarketplacePage(props: { searchParams: SearchParams }) {
   const searchParams = await props.searchParams;
-  const session = await auth();
 
   const page = Math.max(1, Number(searchParams.page || "1"));
-  const skip = (page - 1) * PAGE_SIZE;
 
-  const orderBy =
-    searchParams.sort === "price_asc"
-      ? ({ sellingPrice: "asc" } as const)
-      : searchParams.sort === "price_desc"
-        ? ({ sellingPrice: "desc" } as const)
-        : searchParams.sort === "popularity"
-          ? ({ reviews: { _count: "desc" } } as const)
-          : ({ createdAt: "desc" } as const);
-
-  let items: ItemWithRelations[] = [];
+  let products: ProductSummary[] = [];
   let total = 0;
-  let wishlistedIds = new Set<string>();
-  let cartItemIds = new Set<string>();
+  let pages = 1;
   let dbError = false;
   let dbErrorMessage = "Database is currently unavailable.";
+  let filterOptions: FilterOptions | null = null;
 
   try {
-    const activeCategory = searchParams.category;
-    const legacyCategories = activeCategory ? (Object.entries(LEGACY_CATEGORY_MAP) as [string, string][]).filter(([, target]) => target === activeCategory).map(([legacy]) => legacy) : [];
-    
-    const where: Prisma.ItemWhereInput = {
-      isAvailable: true,
-      featured: activeCategory === "Sale" ? undefined : true,
-      category: activeCategory ? { in: [activeCategory, ...legacyCategories] } : undefined,
-      size: searchParams.size || undefined,
-      brand: searchParams.brand || undefined,
-      sellingPrice: searchParams.minPrice || searchParams.maxPrice
-        ? {
-            gte: searchParams.minPrice ? Number(searchParams.minPrice) : undefined,
-            lte: searchParams.maxPrice ? Number(searchParams.maxPrice) : undefined,
-          }
-        : undefined,
-      OR: searchParams.q
-        ? [
-            { title: { contains: searchParams.q, mode: "insensitive" } },
-            { brand: { contains: searchParams.q, mode: "insensitive" } },
-            { description: { contains: searchParams.q, mode: "insensitive" } },
-          ]
-        : undefined,
-    };
+    const [data, filters] = await Promise.all([
+      listProducts({
+        category: searchParams.category || undefined,
+        brand: searchParams.brand || undefined,
+        search: searchParams.q || undefined,
+        minPrice: searchParams.minPrice ? Number(searchParams.minPrice) : undefined,
+        maxPrice: searchParams.maxPrice ? Number(searchParams.maxPrice) : undefined,
+        sort: (searchParams.sort ?? "newest") as ListProductsInput["sort"],
+        page,
+        pageSize: PAGE_SIZE,
+      }),
+      getFilterOptions({
+        category: searchParams.category || undefined,
+        brand: searchParams.brand || undefined,
+      }),
+    ]);
 
-    let itemRows;
-    let count;
-    let wishlist;
-    try {
-      [itemRows, count, wishlist] = await Promise.all([
-        prismaAny.item.findMany({
-          where,
-          include: {
-            images: true,
-            owner: { select: { role: true } },
-            reviews: true,
-          },
-          orderBy,
-          skip,
-          take: PAGE_SIZE,
-        }),
-        prismaAny.item.count({ where }),
-        session?.user
-          ? prisma.wishlist.findMany({ where: { userId: session.user.id }, select: { itemId: true } })
-          : Promise.resolve([]),
-      ]);
-    } catch (error) {
-      if (!isPrismaUnknownFieldError(error)) throw error;
-      const legacyWhere = { ...where };
-      delete legacyWhere.isAvailable;
-      delete legacyWhere.AND;
-      [itemRows, count, wishlist] = await Promise.all([
-        prismaAny.item.findMany({
-          where: legacyWhere,
-          include: {
-            images: true,
-            owner: { select: { role: true } },
-            reviews: true,
-          },
-          orderBy: searchParams.sort === "popularity" ? { createdAt: "desc" } : orderBy,
-          skip,
-          take: PAGE_SIZE,
-        }),
-        prismaAny.item.count({ where: legacyWhere }),
-        session?.user
-          ? prisma.wishlist.findMany({ where: { userId: session.user.id }, select: { itemId: true } })
-          : Promise.resolve([]),
-      ]);
-    }
-
-    items = itemRows;
-    total = count;
-    wishlistedIds = new Set(wishlist.map((entry) => entry.itemId));
-
-    if (session?.user) {
-      try {
-        const cartItems = await prisma.cartItem.findMany({
-          where: { userId: session.user.id },
-          select: { itemId: true },
-        });
-        cartItemIds = new Set(cartItems.map((entry) => entry.itemId));
-      } catch (error) {
-        logDatabaseIssue("MarketplacePage cart query failed", error);
-      }
-    }
+    products = data.products;
+    total = data.total;
+    pages = data.pages;
+    filterOptions = filters;
   } catch (error) {
     dbError = isDatabaseUnavailable(error);
     dbErrorMessage = databaseErrorMessage(error);
     logDatabaseIssue("MarketplacePage database query failed", error);
   }
 
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const activeCategory = searchParams.category;
   const activeBrand = searchParams.brand;
-  const hasFilters = activeCategory || activeBrand || searchParams.q || searchParams.minPrice || searchParams.maxPrice;
+  const hasFilters =
+    activeCategory ||
+    activeBrand ||
+    searchParams.q ||
+    searchParams.minPrice ||
+    searchParams.maxPrice;
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 md:px-8">
@@ -189,63 +101,105 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[280px,1fr]">
         <aside className="hidden lg:block">
-          <div className="rounded-xl border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-[#151822]">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-widest text-black/60 dark:text-white/60">Filters</p>
-              {hasFilters ? (
-                <Link href="/marketplace" className="text-xs text-[#c25e30] hover:underline">Clear all</Link>
-              ) : null}
-            </div>
+          {filterOptions ? (
+            <div className="rounded-xl border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-[#151822]">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-semibold uppercase tracking-widest text-black/60 dark:text-white/60">
+                  Filters
+                </p>
+                {hasFilters ? (
+                  <Link href="/marketplace" className="text-xs text-[#c25e30] hover:underline">
+                    Clear all
+                  </Link>
+                ) : null}
+              </div>
 
-            <div className="mt-4 space-y-4">
-              <div>
-                <p className="text-xs font-semibold text-black/70 dark:text-white/70">Category</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {CATEGORIES.map((category) => (
-                    <Link
-                      key={category}
-                      href={`/marketplace?category=${encodeURIComponent(category)}`}
-                      className={`rounded-lg border px-2.5 py-1.5 text-xs ${
-                        activeCategory === category
-                          ? "border-[#c25e30] bg-[#c25e30]/10 text-[#c25e30]"
-                          : "border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
-                      }`}
-                    >
-                      {category}
-                    </Link>
-                  ))}
+              <div className="space-y-5">
+                <div>
+                  <p className="text-xs font-semibold text-black/70 dark:text-white/70 mb-2">
+                    Category
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {filterOptions.categories.map((cat) => (
+                      <Link
+                        key={cat.slug}
+                        href={`/marketplace?category=${encodeURIComponent(cat.slug)}`}
+                        className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                          activeCategory === cat.slug
+                            ? "border-[#c25e30] bg-[#c25e30]/10 text-[#c25e30]"
+                            : "border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+                        }`}
+                      >
+                        {cat.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-black/70 dark:text-white/70 mb-2">
+                    Brand
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {filterOptions.brands.map((brand) => (
+                      <Link
+                        key={brand.slug}
+                        href={`/marketplace?brand=${encodeURIComponent(brand.slug)}`}
+                        className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                          activeBrand === brand.slug
+                            ? "border-[#c25e30] bg-[#c25e30]/10 text-[#c25e30]"
+                            : "border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+                        }`}
+                      >
+                        {brand.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-black/70 dark:text-white/70 mb-2">
+                    Price Range
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      name="minPrice"
+                      defaultValue={searchParams.minPrice}
+                      placeholder="Min"
+                      className="w-full rounded-lg border border-black/10 px-2.5 py-1.5 text-xs dark:border-white/10"
+                    />
+                    <span className="text-xs text-black/40">-</span>
+                    <input
+                      name="maxPrice"
+                      defaultValue={searchParams.maxPrice}
+                      placeholder="Max"
+                      className="w-full rounded-lg border border-black/10 px-2.5 py-1.5 text-xs dark:border-white/10"
+                    />
+                  </div>
+                  <p className="mt-1 text-[10px] text-black/40">
+                    {filterOptions.priceRange.min} - {filterOptions.priceRange.max}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-black/70 dark:text-white/70 mb-2">
+                    Condition
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {filterOptions.conditions.map((cond) => (
+                      <Link
+                        key={cond.value}
+                        href={`/marketplace?condition=${encodeURIComponent(cond.value)}`}
+                        className={`rounded-lg border px-2.5 py-1.5 text-xs transition border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5`}
+                      >
+                        {cond.label}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               </div>
-
-              <div>
-                <p className="text-xs font-semibold text-black/70 dark:text-white/70">Brand</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {FEATURED_BRANDS.map((brand) => (
-                    <Link
-                      key={brand}
-                      href={`/marketplace?q=${encodeURIComponent(brand)}`}
-                      className={`rounded-lg border px-2.5 py-1.5 text-xs ${
-                        activeBrand === brand
-                          ? "border-[#c25e30] bg-[#c25e30]/10 text-[#c25e30]"
-                          : "border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
-                      }`}
-                    >
-                      {brand}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs font-semibold text-black/70 dark:text-white/70">Price Range</p>
-                <form className="mt-2 flex items-center gap-2">
-                  <input name="minPrice" defaultValue={searchParams.minPrice} placeholder="Min" className="w-full rounded-lg border border-black/10 px-2.5 py-1.5 text-xs dark:border-white/10" />
-                  <span className="text-xs text-black/40">-</span>
-                  <input name="maxPrice" defaultValue={searchParams.maxPrice} placeholder="Max" className="w-full rounded-lg border border-black/10 px-2.5 py-1.5 text-xs dark:border-white/10" />
-                </form>
-              </div>
             </div>
-          </div>
+          ) : null}
         </aside>
 
         <div className="space-y-4">
@@ -260,49 +214,75 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
               />
             </label>
 
-            <select name="category" defaultValue={searchParams.category} className="rounded-xl border border-black/10 bg-transparent px-4 py-2.5 text-sm dark:border-white/10">
+            <select
+              name="category"
+              defaultValue={searchParams.category}
+              className="rounded-xl border border-black/10 bg-transparent px-4 py-2.5 text-sm dark:border-white/10"
+            >
               <option value="">All categories</option>
-          {CATEGORIES.map((category) => (
-            <option key={category} value={category}>
-              {category}
-            </option>
-          ))}
-            </select>
-
-            <select name="brand" defaultValue={searchParams.brand} className="rounded-xl border border-black/10 bg-transparent px-4 py-2.5 text-sm dark:border-white/10">
-              <option value="">All brands</option>
-              {FEATURED_BRANDS.map((brand) => (
-                <option key={brand} value={brand}>
-                  {brand}
+              {filterOptions?.categories.map((category) => (
+                <option key={category.slug} value={category.slug}>
+                  {category.name}
                 </option>
               ))}
             </select>
 
-            <select name="sort" defaultValue={searchParams.sort || "latest"} className="rounded-xl border border-black/10 bg-transparent px-4 py-2.5 text-sm dark:border-white/10">
-              <option value="latest">New arrivals</option>
+            <select
+              name="brand"
+              defaultValue={searchParams.brand}
+              className="rounded-xl border border-black/10 bg-transparent px-4 py-2.5 text-sm dark:border-white/10"
+            >
+              <option value="">All brands</option>
+              {filterOptions?.brands.map((brand) => (
+                <option key={brand.slug} value={brand.slug}>
+                  {brand.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              name="sort"
+              defaultValue={searchParams.sort || "newest"}
+              className="rounded-xl border border-black/10 bg-transparent px-4 py-2.5 text-sm dark:border-white/10"
+            >
+              <option value="newest">New arrivals</option>
               <option value="price_asc">Price: Low to high</option>
               <option value="price_desc">Price: High to low</option>
               <option value="popularity">Popularity</option>
+              <option value="rating">Top rated</option>
             </select>
 
-            <button className="rounded-xl bg-[#F68B1E] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#e07d18]">Apply</button>
+            <button
+              className="rounded-xl bg-[#F68B1E] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#e07d18]"
+            >
+              Apply
+            </button>
           </form>
 
           {hasFilters ? (
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-semibold text-black/60 dark:text-white/60">Active filters:</span>
               {activeCategory ? (
-                <Link href={`/marketplace?${new URLSearchParams({ ...searchParams, category: "" }).toString()}`} className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-black/5 px-2.5 py-1 dark:border-white/10 dark:bg-white/5">
+                <Link
+                  href={`/marketplace?${new URLSearchParams({ ...searchParams, category: "" }).toString()}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-black/5 px-2.5 py-1 dark:border-white/10 dark:bg-white/5"
+                >
                   {activeCategory} <X className="size-3" />
                 </Link>
               ) : null}
               {activeBrand ? (
-                <Link href={`/marketplace?${new URLSearchParams({ ...searchParams, brand: "" }).toString()}`} className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-black/5 px-2.5 py-1 dark:border-white/10 dark:bg-white/5">
+                <Link
+                  href={`/marketplace?${new URLSearchParams({ ...searchParams, brand: "" }).toString()}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-black/5 px-2.5 py-1 dark:border-white/10 dark:bg-white/5"
+                >
                   {activeBrand} <X className="size-3" />
                 </Link>
               ) : null}
               {searchParams.q ? (
-                <Link href={`/marketplace?${new URLSearchParams({ ...searchParams, q: "" }).toString()}`} className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-black/5 px-2.5 py-1 dark:border-white/10 dark:bg-white/5">
+                <Link
+                  href={`/marketplace?${new URLSearchParams({ ...searchParams, q: "" }).toString()}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-black/5 px-2.5 py-1 dark:border-white/10 dark:bg-white/5"
+                >
                   &ldquo;{searchParams.q}&rdquo; <X className="size-3" />
                 </Link>
               ) : null}
@@ -310,45 +290,99 @@ export default async function MarketplacePage(props: { searchParams: SearchParam
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={{
-                  ...item,
-                  isWishlisted: wishlistedIds.has(item.id),
-                  isInCart: cartItemIds.has(item.id),
-                }}
-              />
-            ))}
-          </div>
-
-          {items.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-black/15 p-8 text-center text-sm opacity-75 dark:border-white/20">
-              No products match your filters. Try adjusting your search or browse all categories.
-            </div>
-          ) : null}
-
-          {pages > 1 ? (
-            <div className="mt-8 flex items-center justify-between rounded-2xl border border-black/5 p-3 text-sm dark:border-white/10">
-              <p>
-                Page {page} of {pages}
-              </p>
-              <div className="flex gap-2">
+            {products.map((product) => (
+              <div key={product.id} className="group flex flex-col">
                 <Link
-                  className={`rounded-lg border border-black/10 px-3 py-1.5 dark:border-white/20 ${page <= 1 ? "pointer-events-none opacity-50" : ""}`}
-                  href={buildPageHref(searchParams, page - 1)}
+                  href={`/product/${product.slug}`}
+                  className="block overflow-hidden rounded-2xl border border-black/5 bg-white transition hover:shadow-lg dark:border-white/10 dark:bg-[#151822]"
                 >
-                  Previous
-                </Link>
-                <Link
-                  className={`rounded-lg border border-black/10 px-3 py-1.5 dark:border-white/20 ${page >= pages ? "pointer-events-none opacity-50" : ""}`}
-                  href={buildPageHref(searchParams, page + 1)}
-                >
-                  Next
+                  <div className="relative aspect-square overflow-hidden bg-black/5 dark:bg-white/5">
+                    {product.images[0]?.url ? (
+                      <img
+                        src={product.images[0].url}
+                        alt={product.title}
+                        className="object-cover transition duration-500 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="grid h-full place-content-center text-sm opacity-60">No image</div>
+                    )}
+                    {product.isOfficial && (
+                      <span className="absolute left-2 top-2 rounded-full bg-[#c25e30] px-2 py-1 text-[11px] font-semibold text-white">
+                        Official Store
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-1 flex-col gap-1.5 p-3">
+                    <p className="text-[11px] uppercase tracking-widest opacity-60">{product.vendorName}</p>
+                    <h3 className="line-clamp-2 text-sm font-medium">{product.title}</h3>
+
+                    <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-base font-semibold text-[#c25e30]">{formatCurrency(product.minPrice)}</p>
+                        {product.basePrice > product.minPrice && (
+                          <p className="text-[11px] line-through opacity-60">{formatCurrency(product.basePrice)}</p>
+                        )}
+                        <p className="text-[11px] text-black/50 dark:text-white/50">Free delivery</p>
+                      </div>
+                      {product.averageRating ? (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span
+                                key={star}
+                                className={`size-3 ${
+                                  star <= Math.round(product.averageRating ?? 0)
+                                    ? "fill-[#ffbf00] text-[#ffbf00]"
+                                    : "text-black/20"
+                                }`}
+                              >
+                                ★
+                              </span>
+                            ))}
+                          </div>
+                          <span className="text-[10px] font-medium text-black/60 dark:text-white/60">
+                            ({product.reviewCount})
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
                 </Link>
               </div>
-            </div>
-          ) : null}
+            ))}
+
+            {products.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-black/15 p-8 text-center text-sm opacity-75 dark:border-white/20">
+                No products match your filters. Try adjusting your search or browse all categories.
+              </div>
+            ) : null}
+
+            {pages > 1 ? (
+              <div className="mt-8 flex items-center justify-between rounded-2xl border border-black/5 p-3 text-sm dark:border-white/10">
+                <p>Page {page} of {pages}</p>
+                <div className="flex gap-2">
+                  <Link
+                    className={`rounded-lg border border-black/10 px-3 py-1.5 dark:border-white/20 ${
+                      page <= 1 ? "pointer-events-none opacity-50" : ""
+                    }`}
+                    href={buildPageHref(searchParams, page - 1)}
+                  >
+                    Previous
+                  </Link>
+                  <Link
+                    className={`rounded-lg border border-black/10 px-3 py-1.5 dark:border-white/20 ${
+                      page >= pages ? "pointer-events-none opacity-50" : ""
+                    }`}
+                    href={buildPageHref(searchParams, page + 1)}
+                  >
+                    Next
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </main>
