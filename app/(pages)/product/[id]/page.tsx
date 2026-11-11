@@ -33,9 +33,9 @@ export default async function ProductDetailPage(props: { params: Promise<{ id: s
         images: { orderBy: { sortOrder: "asc" } },
         variants: { where: { isActive: true }, orderBy: { price: "asc" } },
         category: true,
-        seller: { select: { name: true, id: true } },
+        vendor: { select: { businessName: true, id: true } },
         reviews: {
-          include: { author: { select: { name: true } } },
+          include: { user: { select: { name: true } } },
           orderBy: { createdAt: "desc" },
         },
       },
@@ -54,15 +54,15 @@ export default async function ProductDetailPage(props: { params: Promise<{ id: s
           : Promise.resolve(null),
         session?.user
           ? (async () => {
-              const cart = await prisma.storeCart.findFirst({
+              const cart = await prisma.cart.findFirst({
                 where: { userId: session.user.id },
                 select: { id: true },
               });
               if (!cart) return null;
-              return prisma.storeCartItem.findFirst({
+              return prisma.cartItem.findFirst({
                 where: {
                   cartId: cart.id,
-                  variantId: { in: product.variants.map((v: any) => v.id) },
+                  productId: product.id,
                 },
                 select: { id: true },
               });
@@ -255,7 +255,7 @@ export default async function ProductDetailPage(props: { params: Promise<{ id: s
               </div>
               <div className="flex justify-between">
                 <dt className="text-black/60 dark:text-white/60">Seller</dt>
-                <dd className="font-medium text-black dark:text-white">{product.seller.name}</dd>
+                <dd className="font-medium text-black dark:text-white">{product.vendor?.businessName ?? "—"}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-black/60 dark:text-white/60">Variants</dt>

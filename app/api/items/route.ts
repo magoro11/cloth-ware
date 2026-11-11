@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ItemCondition } from "@prisma/client";
+import { Condition } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/access";
 import { errorStatus } from "@/backend/lib/errors";
@@ -14,7 +14,7 @@ const createItemSchema = z.object({
   description: z.string().min(20).max(2000),
   category: z.string().min(2).max(50),
   size: z.string().min(1).max(20),
-  condition: z.nativeEnum(ItemCondition),
+  condition: z.nativeEnum(Condition),
   rentalPricePerDay: z.number().int().positive(),
   sellingPrice: z.number().int().positive().nullable(),
   securityDeposit: z.number().int().positive(),
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       : undefined;
     const q = searchParams.get("q") || undefined;
 
-    const items = await prisma.item.findMany({
+    const items = await prismaAny.item.findMany({
       where: {
         featured: true,
         category,

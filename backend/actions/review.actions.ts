@@ -13,7 +13,7 @@ const reviewSchema = z.object({
 export async function listProductReviews(input: { productId: string }) {
   const reviews = await prisma.review.findMany({
     where: { productId: input.productId },
-    include: { author: { select: { id: true, name: true, image: true } } },
+    include: { user: { select: { id: true, name: true, image: true } } },
     orderBy: { createdAt: "desc" },
   });
   return { reviews };
@@ -22,7 +22,7 @@ export async function listProductReviews(input: { productId: string }) {
 export async function getMyReview(input: { productId: string }) {
   const user = await requireUser();
   const review = await prisma.review.findFirst({
-    where: { productId: input.productId, authorId: user.id },
+    where: { productId: input.productId, userId: user.id },
   });
   return { review };
 }
@@ -34,8 +34,11 @@ export async function upsertReview(input: { productId: string } & z.infer<typeof
   // Only allow review if user has a paid order for this product (anti fake review)
   const hasPurchase = await prisma.orderItem.findFirst({
     where: {
-      order: { userId: user.id, status: "DELIVERED" },
       productId: input.productId,
+      subOrder: {
+        order: { userId: user.id, status: "DELIVERED" },
+        status: "DELIVERED",
+      },
     },
     select: { id: true },
   });
@@ -44,7 +47,7 @@ export async function upsertReview(input: { productId: string } & z.infer<typeof
   }
 
   const review = await prisma.review.findFirst({
-    where: { authorId: user.id, productId: input.productId },
+    where: { userId: user.id, productId: input.productId },
   });
   if (review) {
     const updated = await prisma.review.update({
@@ -56,7 +59,7 @@ export async function upsertReview(input: { productId: string } & z.infer<typeof
   }
 
   const created = await prisma.review.create({
-    data: { authorId: user.id, productId: input.productId, rating: parsed.rating, comment: parsed.comment ?? "" },
+    data: { userId: user.id, productId: input.productId, rating: parsed.rating, comment: parsed.comment ?? "" },
   });
   revalidatePath("/store/placeholder");
   return { review: created };

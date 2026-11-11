@@ -1,32 +1,47 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser, AuthError } from "@/lib/access";
-import { errorStatus, isDatabaseUnavailable } from "@/backend/lib/errors";
+import { errorStatus } from "@/backend/lib/errors";
 import { prisma } from "@/lib/prisma";
 
 const schema = z.object({
-  itemId: z.string().min(1),
+  productId: z.string().min(1),
+  quantity: z.number().int().positive().optional().default(1),
+  variantId: z.string().optional(),
 });
+
+const prismaAny = prisma as any;
 
 export async function GET() {
   try {
     const user = await requireUser();
-    const cartItems = await prisma.cartItem.findMany({
+    const cart = await prisma.cart.findFirst({
       where: { userId: user.id },
+      select: { id: true },
+    });
+    if (!cart) {
+      return NextResponse.json({ count: 0, items: [] });
+    }
+
+    const cartItems = await prisma.cartItem.findMany({
+      where: { cartId: cart.id },
       include: {
-        item: {
+        product: {
           include: {
             images: { orderBy: { sortOrder: "asc" } },
-            owner: { select: { id: true, name: true, email: true, role: true } },
           },
         },
+        variant: true,
       },
       orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json({
       count: cartItems.length,
-      items: cartItems,
+      items: cartItems.map((ci: any) => ({
+        ...ci,
+        item: ci.product,
+      })),
     });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -34,7 +49,7 @@ export async function GET() {
     }
     const message = error instanceof Error ? error.message : "Unable to load cart";
     return NextResponse.json(
-      { error: isDatabaseUnavailable(error) ? "Cart tables are not in the database yet. Run npm run db:push." : message },
+      { error: message },
       { status: errorStatus(error, 400) },
     );
   }
@@ -43,52 +58,76 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
-    const { itemId } = schema.parse(await request.json());
+    const { productId, quantity, variantId } = schema.parse(await request.json());
 
-    const item = await prisma.item.findUnique({
-      where: { id: itemId },
-      select: { id: true, ownerId: true, featured: true, sellingPrice: true, title: true },
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true, vendorId: true, isPublished: true, basePrice: true, title: true },
     });
 
-    if (!item) {
-      return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    if (!product) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    if (!item.featured) {
+    if (!product.isPublished) {
       return NextResponse.json({ error: "Listing is not available yet" }, { status: 409 });
     }
 
-    if (!item.sellingPrice) {
-      return NextResponse.json({ error: "This listing is only available for rental" }, { status: 409 });
+    if (product.vendorId === user.id) {
+      return NextResponse.json({ error: "You cannot add your own product to cart" }, { status: 400 });
     }
 
-    if (item.ownerId === user.id) {
-      return NextResponse.json({ error: "You cannot add your own item to cart" }, { status: 400 });
+    let cart = await prisma.cart.findFirst({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+    if (!cart) {
+      cart = await prisma.cart.create({
+        data: { userId: user.id },
+        select: { id: true },
+      });
     }
 
-    const cartItem = await prisma.cartItem.upsert({
-      where: {
-        userId_itemId: {
-          userId: user.id,
-          itemId: item.id,
-        },
-      },
-      update: {},
-      create: {
-        userId: user.id,
-        itemId: item.id,
-      },
-      include: {
-        item: {
-          include: {
-            images: { orderBy: { sortOrder: "asc" } },
-            owner: { select: { id: true, name: true, email: true, role: true } },
-          },
-        },
-      },
+    const existing = await prisma.cartItem.findFirst({
+      where: { cartId: cart.id, productId: product.id },
     });
 
-    const count = await prisma.cartItem.count({ where: { userId: user.id } });
+    let cartItem;
+    if (existing) {
+      cartItem = await prisma.cartItem.update({
+        where: { id: existing.id },
+        data: { quantity: { increment: quantity } },
+        include: {
+          product: {
+            include: {
+              images: { orderBy: { sortOrder: "asc" } },
+            },
+          },
+          variant: true,
+        },
+      });
+    } else {
+      cartItem = await prisma.cartItem.create({
+        data: {
+          cartId: cart.id,
+          productId: product.id,
+          variantId: variantId ?? null,
+          quantity,
+        },
+        include: {
+          product: {
+            include: {
+              images: { orderBy: { sortOrder: "asc" } },
+            },
+          },
+          variant: true,
+        },
+      });
+    }
+
+    const count = await prisma.cartItem.count({
+      where: { cartId: cart.id },
+    });
 
     return NextResponse.json({ cartItem, count }, { status: 201 });
   } catch (error) {
@@ -97,7 +136,7 @@ export async function POST(request: Request) {
     }
     const message = error instanceof Error ? error.message : "Unable to add item to cart";
     return NextResponse.json(
-      { error: isDatabaseUnavailable(error) ? "Cart tables are not in the database yet. Run npm run db:push." : message },
+      { error: message },
       { status: errorStatus(error, 400) },
     );
   }
@@ -106,16 +145,26 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const user = await requireUser();
-    const { itemId } = schema.parse(await request.json());
+    const { productId } = schema.parse(await request.json());
+
+    const cart = await prisma.cart.findFirst({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+    if (!cart) {
+      return NextResponse.json({ success: true, count: 0 });
+    }
 
     await prisma.cartItem.deleteMany({
       where: {
-        userId: user.id,
-        itemId,
+        cartId: cart.id,
+        productId,
       },
     });
 
-    const count = await prisma.cartItem.count({ where: { userId: user.id } });
+    const count = await prisma.cartItem.count({
+      where: { cartId: cart.id },
+    });
 
     return NextResponse.json({ success: true, count });
   } catch (error) {
@@ -124,7 +173,7 @@ export async function DELETE(request: Request) {
     }
     const message = error instanceof Error ? error.message : "Unable to remove item from cart";
     return NextResponse.json(
-      { error: isDatabaseUnavailable(error) ? "Cart tables are not in the database yet. Run npm run db:push." : message },
+      { error: message },
       { status: errorStatus(error, 400) },
     );
   }

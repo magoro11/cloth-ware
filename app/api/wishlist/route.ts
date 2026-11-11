@@ -5,41 +5,40 @@ import { requireUser, AuthError } from "@/lib/access";
 import { errorStatus } from "@/backend/lib/errors";
 
 const schema = z.object({
-  itemId: z.string().min(2),
+  productId: z.string().min(2),
 });
 
 export async function GET() {
   try {
     const user = await requireUser();
-    const wishlist = await prisma.wishlist.findMany({
+    const wishlist = await prisma.wishlistItem.findMany({
       where: { userId: user.id },
-      select: { itemId: true },
+      select: { productId: true },
     });
-    return NextResponse.json({ itemIds: wishlist.map((entry) => entry.itemId) });
+    return NextResponse.json({ productIds: wishlist.map((entry) => entry.productId) });
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    return NextResponse.json({ itemIds: [] });
+    return NextResponse.json({ productIds: [] });
   }
 }
 
-/** Toggle: adds if absent, removes if present. Used by the heart button. */
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
     const payload = schema.parse(await request.json());
 
-    const existing = await prisma.wishlist.findUnique({
-      where: { userId_itemId: { userId: user.id, itemId: payload.itemId } },
+    const existing = await prisma.wishlistItem.findUnique({
+      where: { userId_productId: { userId: user.id, productId: payload.productId } },
     });
 
     if (existing) {
-      await prisma.wishlist.delete({ where: { id: existing.id } });
+      await prisma.wishlistItem.delete({ where: { id: existing.id } });
       return NextResponse.json({ wishlisted: false });
     }
 
-    await prisma.wishlist.create({ data: { userId: user.id, itemId: payload.itemId } });
+    await prisma.wishlistItem.create({ data: { userId: user.id, productId: payload.productId } });
     return NextResponse.json({ wishlisted: true });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -50,14 +49,13 @@ export async function POST(request: Request) {
   }
 }
 
-/** Explicit DELETE — always removes without toggling. */
 export async function DELETE(request: Request) {
   try {
     const user = await requireUser();
     const payload = schema.parse(await request.json());
 
-    await prisma.wishlist.deleteMany({
-      where: { userId: user.id, itemId: payload.itemId },
+    await prisma.wishlistItem.deleteMany({
+      where: { userId: user.id, productId: payload.productId },
     });
 
     return NextResponse.json({ wishlisted: false });

@@ -1,7 +1,23 @@
-import { type NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/utils/supabase/middleware";
 
-export function proxy(request: NextRequest) {
+const protectedPrefixes = ["/admin", "/lender", "/dashboard/admin", "/dashboard/seller"];
+
+export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // NextAuth-based auth protection for protected routes
+  if (protectedPrefixes.some((prefix) => pathname.startsWith(prefix))) {
+    const token = await getToken({ req: request, secret: process.env.AUTH_SECRET });
+    if (!token) {
+      const url = new URL("/auth/signin", request.url);
+      url.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Update Supabase session
   return updateSession(request);
 }
 

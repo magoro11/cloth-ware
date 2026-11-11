@@ -29,10 +29,10 @@ async function requireSellerProductAccess(productId: string, userId: string) {
   const user = await requireUser();
   const product = await prisma.product.findUnique({
     where: { id: productId },
-    select: { id: true, sellerId: true },
+    select: { id: true, vendorId: true },
   });
   if (!product) throw new AuthError("Not found", 404);
-  if (user.role !== "ADMIN" && product.sellerId !== user.id) {
+  if (user.role !== "ADMIN" && product.vendorId !== user.id) {
     throw new AuthError("Forbidden", 403);
   }
   return user;
@@ -51,13 +51,23 @@ export async function createProduct(input: {
   const user = await requireRole(["LENDER", "ADMIN"]);
   const parsed = baseProductSchema.parse(input);
 
+  let brandId: string | undefined;
+  if (parsed.brand) {
+    const brand = await prisma.brand.upsert({
+      where: { name: parsed.brand },
+      update: {},
+      create: { name: parsed.brand, slug: parsed.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 80) },
+    });
+    brandId = brand.id;
+  }
+
   const product = await prisma.product.create({
     data: {
-      sellerId: user.id,
+      vendorId: user.id,
+      brandId,
       categoryId: parsed.categoryId ?? undefined,
       slug: parsed.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 80),
       title: parsed.title,
-      brand: parsed.brand ?? null,
       description: parsed.description,
       basePrice: parsed.basePrice,
       isPublished: parsed.isPublished,

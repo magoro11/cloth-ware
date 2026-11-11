@@ -13,23 +13,38 @@ export default async function CheckoutPage() {
   if (!session?.user) redirect("/auth/signin");
 
   const cartItems = await prisma.cartItem.findMany({
-    where: { userId: session.user.id },
+    where: { cart: { userId: session.user.id } },
     include: {
-      item: {
+      product: {
         include: {
-          images: { take: 1 },
-          owner: { select: { name: true } },
+          images: { take: 1, orderBy: { sortOrder: "asc" } },
+          brand: true,
         },
       },
+      variant: true,
     },
     orderBy: { createdAt: "desc" },
   });
 
-  const subtotal = cartItems.reduce((sum, entry) => sum + (entry.item.sellingPrice ?? 0), 0);
+  const mappedItems = cartItems.map((entry) => ({
+    id: entry.id,
+    productId: entry.productId,
+      product: {
+        id: entry.product.id,
+        title: entry.product.title,
+        brand: entry.product.brand?.name ?? "",
+        basePrice: entry.product.basePrice,
+        images: entry.product.images,
+      },
+    variantId: entry.variantId,
+    quantity: entry.quantity,
+  }));
+
+  const subtotal = mappedItems.reduce((sum, entry) => sum + (entry.product.basePrice ?? 0) * entry.quantity, 0);
   const shipping = subtotal >= 100 ? 0 : 15;
   const total = subtotal + shipping;
 
-  if (cartItems.length === 0) {
+  if (mappedItems.length === 0) {
     return (
       <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
         <div className="rounded-2xl border border-dashed border-black/15 p-8 text-center">
@@ -55,7 +70,7 @@ export default async function CheckoutPage() {
         <aside className="h-fit rounded-2xl border border-black/5 p-5 dark:border-white/10">
           <h2 className="font-semibold text-black dark:text-white">Order Summary</h2>
           <div className="mt-4 space-y-3">
-            <CartList initialItems={cartItems.map((entry) => ({ ...entry, item: entry.item }))} />
+            <CartList initialItems={mappedItems} />
           </div>
           <div className="mt-4 space-y-2 text-sm">
             <div className="flex items-center justify-between">

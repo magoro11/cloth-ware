@@ -9,9 +9,9 @@ export async function POST(_request: Request, { params }: Params) {
     await requireRole(["ADMIN"]);
     const { id } = await params;
 
-    await prisma.item.update({
+    await prisma.product.update({
       where: { id },
-      data: { featured: true },
+      data: { isFeatured: true },
     });
 
     return NextResponse.redirect(new URL("/dashboard/admin", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));

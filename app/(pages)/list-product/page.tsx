@@ -34,7 +34,7 @@ export default async function ListProductPage(props: { searchParams: SearchParam
       ? await prisma.product.findFirst({
           where: {
             id: searchParams.id,
-            sellerId: session.user.role === "ADMIN" ? undefined : session.user.id,
+            vendorId: session.user.role === "ADMIN" ? undefined : session.user.id,
           },
           include: {
             variants: true,
@@ -46,7 +46,7 @@ export default async function ListProductPage(props: { searchParams: SearchParam
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 md:px-8">
-      <ListProductForm initialProduct={product ?? undefined} />
+      <ListProductForm initialProduct={(product ?? undefined) as any} />
     </main>
   );
 }

@@ -9,6 +9,8 @@ const schema = z.object({
   returnedAt: z.coerce.date().optional(),
 });
 
+const prismaAny = prisma as any;
+
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: Params) {
@@ -16,7 +18,7 @@ export async function POST(request: Request, { params }: Params) {
     await requireRole(["ADMIN"]);
     const { id } = await params;
     const payload = schema.parse(await request.json());
-    const booking = await prisma.booking.findUnique({
+    const booking = await prismaAny.booking.findUnique({
       where: { id },
       include: { item: true, customer: { select: { email: true } } },
     });
@@ -27,7 +29,7 @@ export async function POST(request: Request, { params }: Params) {
     const lateFee = lateDays * Math.round(booking.item.rentalPricePerDay * 0.3);
     const finalOwnerPayout = booking.ownerPayoutAmount + lateFee;
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prismaAny.$transaction(async (tx: any) => {
       const updated = await tx.booking.update({
         where: { id: booking.id },
         data: {

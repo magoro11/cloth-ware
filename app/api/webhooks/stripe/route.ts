@@ -22,47 +22,46 @@ export async function POST(request: Request) {
       const orderId = session.metadata?.orderId;
 
       if (orderId) {
-        // Idempotent: Payment.providerPaymentId is unique; skip if already processed.
         const existing = await prisma.payment.findFirst({
           where: { providerPaymentId: session.id, status: "SUCCEEDED" },
           select: { id: true },
         });
 
         if (!existing) {
-          await prisma.$transaction([
-            prisma.payment.updateMany({
-              where: { orderId },
-              data: { status: "SUCCEEDED", paidAt: new Date(), rawResponse: session as any },
-            }),
-            prisma.order.update({
-              where: { id: orderId },
-              data: { status: "PAID" },
-            }),
-            // Decrement stock for each purchased variant
-            ...(await (async () => {
-              const items = await prisma.orderItem.findMany({
-                where: { orderId },
-                include: { variant: true },
-              });
-              return items
-                .filter((item) => Boolean(item.variantId))
-                .map((item) =>
-                  prisma.productVariant.update({
-                    where: { id: item.variantId! },
-                    data: { stock: { decrement: item.quantity } },
-                  }),
-                );
-            })()),
-            // Clear the buyer's cart after successful payment
-            ...(session.metadata?.userId
-              ? [prisma.storeCart.deleteMany({ where: { userId: session.metadata?.userId as string } })]
-              : []),
-          ]);
-
           const order = await prisma.order.findUnique({
             where: { id: orderId },
-            include: { user: true },
+            include: {
+              subOrders: { include: { items: { include: { variant: true } } } },
+              user: true,
+            },
           });
+
+          if (order) {
+            await prisma.$transaction([
+              prisma.payment.updateMany({
+                where: { orderId },
+                data: { status: "SUCCEEDED", paidAt: new Date(), rawResponse: session as any },
+              }),
+              prisma.order.update({
+                where: { id: orderId },
+                data: { status: "PAID" },
+              }),
+              ...order.subOrders.flatMap((subOrder) =>
+                subOrder.items
+                  .filter((item) => Boolean(item.variantId))
+                  .map((item) =>
+                    prisma.productVariant.update({
+                      where: { id: item.variantId! },
+                      data: { stock: { decrement: item.quantity } },
+                    }),
+                  ),
+              ),
+              ...(session.metadata?.userId
+                ? [prisma.cart.deleteMany({ where: { userId: session.metadata?.userId as string } })]
+                : []),
+            ]);
+          }
+
           if (order?.user?.email) {
             void sendEmailNotification({
               to: order.user.email,

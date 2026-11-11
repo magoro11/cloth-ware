@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/access";
 import { errorStatus } from "@/backend/lib/errors";
 
 const schema = z.object({
-  itemId: z.string().min(1),
+  productId: z.string().min(1),
   rating: z.number().int().min(1).max(5),
   comment: z.string().min(5).max(800),
 });
@@ -15,31 +15,38 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const payload = schema.parse(await request.json());
 
-    // Verify the user has a completed booking for this item
-    const completedBooking = await prisma.booking.findFirst({
+    // Verify the user has a delivered order for this product
+    const deliveredOrder = await prisma.order.findFirst({
       where: {
-        itemId: payload.itemId,
-        customerId: user.id,
-        status: "COMPLETED",
+        userId: user.id,
+        status: "DELIVERED",
+        subOrders: {
+          some: {
+            items: {
+              some: {
+                productId: payload.productId,
+              },
+            },
+          },
+        },
       },
       select: { id: true },
     });
 
-    if (!completedBooking) {
+    if (!deliveredOrder) {
       return NextResponse.json(
-        { error: "You can only review items you have rented and returned." },
+        { error: "You can only review products you have purchased and received." },
         { status: 403 },
       );
     }
 
-    // Prevent duplicate reviews per user per item
+    // Prevent duplicate reviews per user per product
     const existing = await prisma.review.findFirst({
-      where: { itemId: payload.itemId, authorId: user.id },
+      where: { productId: payload.productId, userId: user.id },
       select: { id: true },
     });
 
     if (existing) {
-      // Update existing review instead of creating a duplicate
       const updated = await prisma.review.update({
         where: { id: existing.id },
         data: { rating: payload.rating, comment: payload.comment },
@@ -49,8 +56,8 @@ export async function POST(request: Request) {
 
     const review = await prisma.review.create({
       data: {
-        itemId: payload.itemId,
-        authorId: user.id,
+        productId: payload.productId,
+        userId: user.id,
         rating: payload.rating,
         comment: payload.comment,
       },

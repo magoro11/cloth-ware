@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireUser } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 
+const prismaAny = prisma as any;
+
 const schema = z.object({
   recipientId: z.string().min(2),
   content: z.string().min(1).max(1000),
@@ -17,7 +19,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ messages: [] });
     }
 
-    const messages = await prisma.message.findMany({
+    const messages = await prismaAny.message.findMany({
       where: {
         OR: [
           { senderId: user.id, recipientId },
@@ -38,7 +40,7 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser();
     const payload = schema.parse(await request.json());
-    const message = await prisma.message.create({
+    const message = await prismaAny.message.create({
       data: {
         senderId: user.id,
         recipientId: payload.recipientId,

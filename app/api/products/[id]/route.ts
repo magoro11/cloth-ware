@@ -17,9 +17,9 @@ export async function GET(
       category: true,
       variants: true,
       images: { orderBy: { sortOrder: "asc" } },
-      seller: { select: { name: true, email: true, id: true } },
+      vendor: { select: { businessName: true, businessEmail: true, id: true } },
       reviews: {
-        include: { author: { select: { name: true } } },
+        include: { user: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
         take: 10,
       },
@@ -31,7 +31,7 @@ export async function GET(
   }
 
   // Check access for non-published products
-  if (!product.isPublished && session?.user?.id !== product.sellerId && session?.user?.role !== "ADMIN") {
+  if (!product.isPublished && session?.user?.id !== product.vendorId && session?.user?.role !== "ADMIN") {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
@@ -58,7 +58,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
-  if (product.sellerId !== session.user.id && session.user.role !== "ADMIN") {
+  if (product.vendorId !== session.user.id && session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -167,7 +167,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
-  if (product.sellerId !== session.user.id && session.user.role !== "ADMIN") {
+  if (product.vendorId !== session.user.id && session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

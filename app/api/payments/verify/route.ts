@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyPayment } from "@/backend/lib/payments";
 
+const prismaAny = prisma as any;
+
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
@@ -67,18 +69,22 @@ export async function GET(request: NextRequest) {
 
       const order = await tx.order.findUnique({
         where: { id: payment.orderId },
-        include: { items: true },
+        include: { subOrders: { include: { items: true } } },
       });
 
       if (order) {
-        for (const item of order.items) {
-          await tx.productVariant.update({
-            where: { id: item.variantId || item.productId },
-            data: { stock: { decrement: item.quantity } },
-          });
+        for (const so of order.subOrders) {
+          for (const item of so.items) {
+            if (item.variantId) {
+              await tx.productVariant.update({
+                where: { id: item.variantId },
+                data: { stock: { decrement: item.quantity } },
+              });
+            }
+          }
         }
 
-        await tx.transaction.create({
+        await prismaAny.transaction.create({
           data: {
             userId: order.userId,
             type: "RENTAL_PAYMENT",

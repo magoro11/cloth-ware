@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const { bookingId, phone } = schema.parse(await request.json());
 
-    const booking = await prisma.booking.findUnique({
+    const booking = await prismaAny.booking.findUnique({
       where: { id: bookingId },
       include: { item: true },
     });

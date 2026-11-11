@@ -4,6 +4,8 @@ import { handleMpesaCallback } from "@/backend/lib/payments";
 
 export const dynamic = "force-dynamic";
 
+const prismaAny = prisma as any;
+
 export async function POST(request: NextRequest) {
   try {
     const callback = await request.json();
@@ -30,7 +32,9 @@ export async function POST(request: NextRequest) {
       },
       include: {
         payments: true,
-        items: true,
+        subOrders: {
+          include: { items: true },
+        },
       },
     });
 
@@ -64,16 +68,20 @@ export async function POST(request: NextRequest) {
           data: { status: "PAID" },
         });
 
-        for (const item of order.items) {
-          await tx.productVariant.update({
-            where: { id: item.variantId || item.productId },
-            data: {
-              stock: { decrement: item.quantity },
-            },
-          });
+        for (const so of order.subOrders) {
+          for (const item of so.items) {
+            if (item.variantId) {
+              await tx.productVariant.update({
+                where: { id: item.variantId },
+                data: {
+                  stock: { decrement: item.quantity },
+                },
+              });
+            }
+          }
         }
 
-        await tx.transaction.create({
+        await prismaAny.transaction.create({
           data: {
             userId: order.userId,
             type: "RENTAL_PAYMENT",

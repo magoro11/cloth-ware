@@ -9,8 +9,9 @@ const schema = z.object({
   reason: z.string().max(400).optional(),
 });
 
-// Only PENDING or CONFIRMED bookings can be cancelled by the customer.
 const CANCELLABLE_STATUSES = ["PENDING", "CONFIRMED"] as const;
+
+const prismaAny = prisma as any;
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -20,7 +21,7 @@ export async function POST(request: Request, { params }: Params) {
     const { id } = await params;
     const payload = schema.parse(await request.json().catch(() => ({})));
 
-    const booking = await prisma.booking.findUnique({
+    const booking = await prismaAny.booking.findUnique({
       where: { id },
       include: {
         item: {
@@ -34,7 +35,6 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    // Only the customer who made the booking can cancel it
     if (booking.customerId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -48,12 +48,11 @@ export async function POST(request: Request, { params }: Params) {
       );
     }
 
-    const updated = await prisma.booking.update({
+    const updated = await prismaAny.booking.update({
       where: { id: booking.id },
       data: { status: "CANCELED" },
     });
 
-    // Notify the seller
     if (booking.item.owner.email) {
       await sendEmailNotification({
         to: booking.item.owner.email,

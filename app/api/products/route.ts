@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const categoryId = searchParams.get("categoryId");
-  const sellerId = searchParams.get("sellerId");
+  const vendorId = searchParams.get("sellerId");
   const isPublished = searchParams.get("isPublished");
   const page = Number(searchParams.get("page") || "1");
   const limit = Number(searchParams.get("limit") || "20");
@@ -20,10 +20,10 @@ export async function GET(request: NextRequest) {
 
   const where: any = {};
 
-  if (sellerId) {
-    where.sellerId = sellerId;
+  if (vendorId) {
+    where.vendorId = vendorId;
   } else if (session.user.role !== "ADMIN") {
-    where.sellerId = session.user.id;
+    where.vendorId = session.user.id;
   }
 
   if (categoryId) where.categoryId = categoryId;
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         category: true,
         variants: true,
         images: { orderBy: { sortOrder: "asc" } },
-        seller: { select: { name: true, email: true } },
+        vendor: { select: { businessName: true, businessEmail: true } },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     const product = await prisma.product.create({
       data: {
-        sellerId: session.user.id,
+        vendorId: session.user.id,
         categoryId: categoryId || null,
         slug,
         title,

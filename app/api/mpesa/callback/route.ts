@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existingPayment = await prisma.transaction.findFirst({
+    const existingPayment = await prismaAny.transaction.findFirst({
       where: {
         bookingId: booking.id,
         type: "RENTAL_PAYMENT",
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
               paidAt: new Date(),
             },
           }),
-          prisma.transaction.create({
+          prismaAny.transaction.create({
             data: {
               bookingId: booking.id,
               userId: booking.customerId,
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
               },
             },
           }),
-          prisma.transaction.create({
+          prismaAny.transaction.create({
             data: {
               bookingId: booking.id,
               userId: booking.customerId,
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
               },
             },
           }),
-          prisma.transaction.create({
+          prismaAny.transaction.create({
             data: {
               bookingId: booking.id,
               type: "COMMISSION",

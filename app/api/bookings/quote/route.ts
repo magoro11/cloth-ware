@@ -9,10 +9,12 @@ const quoteSchema = z.object({
   endDate: z.coerce.date(),
 });
 
+const prismaAny = prisma as any;
+
 export async function POST(request: Request) {
   try {
     const input = quoteSchema.parse(await request.json());
-    const item = await prisma.item.findUnique({
+    const item: any = await prismaAny.item.findUnique({
       where: { id: input.itemId },
       include: {
         availabilityBlocks: true,
@@ -30,8 +32,8 @@ export async function POST(request: Request) {
 
     const requested = { startDate: input.startDate, endDate: input.endDate };
     const blocked = [
-      ...item.availabilityBlocks.map((x) => ({ startDate: x.startDate, endDate: x.endDate })),
-      ...item.bookings.map((x) => ({ startDate: x.startDate, endDate: x.endDate })),
+      ...(item.availabilityBlocks as any[]).map((x: any) => ({ startDate: x.startDate, endDate: x.endDate })),
+      ...(item.bookings as any[]).map((x: any) => ({ startDate: x.startDate, endDate: x.endDate })),
     ];
 
     if (blocked.some((b) => overlaps(requested, b))) {

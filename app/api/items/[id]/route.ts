@@ -30,7 +30,7 @@ export async function GET(_request: Request, { params }: Params) {
     const { id } = await params;
     const user = await requireUser().catch(() => null);
 
-    const item = await prisma.item.findUnique({
+    const item = await prismaAny.item.findUnique({
       where: { id },
       include: {
         images: { orderBy: { sortOrder: "asc" } },
@@ -69,7 +69,7 @@ export async function PATCH(request: Request, { params }: Params) {
     const { id } = await params;
     const payload = updateSchema.parse(await request.json());
 
-    const item = await prisma.item.findUnique({
+    const item = await prismaAny.item.findUnique({
       where: { id },
       include: {
         bookings: {
@@ -125,7 +125,7 @@ export async function DELETE(_request: Request, { params }: Params) {
     const user = await requireRole(["LENDER", "ADMIN"]);
     const { id } = await params;
 
-    const item = await prisma.item.findUnique({
+    const item = await prismaAny.item.findUnique({
       where: { id },
       include: {
         bookings: {
@@ -146,7 +146,7 @@ export async function DELETE(_request: Request, { params }: Params) {
       );
     }
 
-    await prisma.item.delete({ where: { id: item.id } });
+    await prismaAny.item.delete({ where: { id: item.id } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to delete item";

@@ -12,7 +12,7 @@ const schema = z.object({
 export async function GET() {
   try {
     const user = await requireUser();
-    let cart: any = await prisma.storeCart.findFirst({
+    let cart: any = await prisma.cart.findFirst({
       where: { userId: user.id },
       include: {
         items: {
@@ -22,7 +22,7 @@ export async function GET() {
                 product: {
                   include: {
                     images: { orderBy: { sortOrder: "asc" }, take: 1 },
-                    seller: { select: { name: true, id: true } },
+                    vendor: { select: { businessName: true, id: true } },
                   },
                 },
               },
@@ -33,7 +33,7 @@ export async function GET() {
     });
 
     if (!cart) {
-      cart = await prisma.storeCart.create({ data: { userId: user.id }, include: { items: true } });
+      cart = await prisma.cart.create({ data: { userId: user.id }, include: { items: true } });
     }
 
     return NextResponse.json({
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
     const variant = await prisma.productVariant.findUnique({
       where: { id: variantId },
-      include: { product: { select: { id: true, sellerId: true, isPublished: true, title: true } } },
+      include: { product: { select: { id: true, vendorId: true, isPublished: true, title: true } } },
     });
 
     if (!variant) {
@@ -78,16 +78,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Only ${variant.stock} items available` }, { status: 409 });
     }
 
-    if (variant.product.sellerId === user.id) {
+    if (variant.product.vendorId === user.id) {
       return NextResponse.json({ error: "You cannot add your own product to cart" }, { status: 400 });
     }
 
-    let cart = await prisma.storeCart.findFirst({ where: { userId: user.id } });
+    let cart = await prisma.cart.findFirst({ where: { userId: user.id } });
     if (!cart) {
-      cart = await prisma.storeCart.create({ data: { userId: user.id } });
+      cart = await prisma.cart.create({ data: { userId: user.id } });
     }
 
-    const cartItem = await prisma.storeCartItem.upsert({
+    const cartItem = await prisma.cartItem.upsert({
       where: {
         cartId_variantId: {
           cartId: cart.id,
@@ -97,6 +97,7 @@ export async function POST(request: Request) {
       update: { quantity: { increment: quantity } },
       create: {
         cartId: cart.id,
+        productId: variant.productId,
         variantId,
         quantity,
       },
@@ -106,7 +107,7 @@ export async function POST(request: Request) {
             product: {
               include: {
                 images: { orderBy: { sortOrder: "asc" }, take: 1 },
-                seller: { select: { name: true, id: true } },
+                vendor: { select: { businessName: true, id: true } },
               },
             },
           },
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const count = await prisma.storeCartItem.aggregate({
+    const count = await prisma.cartItem.aggregate({
       where: { cartId: cart.id },
       _sum: { quantity: true },
     });
@@ -137,13 +138,13 @@ export async function PATCH(request: Request) {
     const user = await requireUser();
     const { variantId, quantity } = schema.parse(await request.json());
 
-    const cart = await prisma.storeCart.findFirst({ where: { userId: user.id } });
+    const cart = await prisma.cart.findFirst({ where: { userId: user.id } });
     if (!cart) {
       return NextResponse.json({ error: "Cart not found" }, { status: 404 });
     }
 
     if (quantity <= 0) {
-      await prisma.storeCartItem.deleteMany({
+      await prisma.cartItem.deleteMany({
         where: { cartId: cart.id, variantId },
       });
     } else {
@@ -152,13 +153,13 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "Insufficient stock" }, { status: 409 });
       }
 
-      await prisma.storeCartItem.update({
+      await prisma.cartItem.update({
         where: { cartId_variantId: { cartId: cart.id, variantId } },
         data: { quantity },
       });
     }
 
-    const count = await prisma.storeCartItem.aggregate({
+    const count = await prisma.cartItem.aggregate({
       where: { cartId: cart.id },
       _sum: { quantity: true },
     });
@@ -178,16 +179,16 @@ export async function DELETE(request: Request) {
     const user = await requireUser();
     const { variantId } = schema.parse(await request.json());
 
-    const cart = await prisma.storeCart.findFirst({ where: { userId: user.id } });
+    const cart = await prisma.cart.findFirst({ where: { userId: user.id } });
     if (!cart) {
       return NextResponse.json({ success: true, count: 0 });
     }
 
-    await prisma.storeCartItem.deleteMany({
+    await prisma.cartItem.deleteMany({
       where: { cartId: cart.id, variantId },
     });
 
-    const count = await prisma.storeCartItem.aggregate({
+    const count = await prisma.cartItem.aggregate({
       where: { cartId: cart.id },
       _sum: { quantity: true },
     });

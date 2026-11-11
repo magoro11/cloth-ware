@@ -5,6 +5,8 @@ import { processPayment, verifyPayment, getAvailablePaymentMethods } from "@/bac
 
 export const dynamic = "force-dynamic";
 
+const prismaAny = prisma as any;
+
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user) {
@@ -26,46 +28,49 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const cartItems = await prisma.cartItem.findMany({
+    const cart = await prisma.cart.findFirst({
       where: { userId: session.user.id },
-      include: { item: true },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
     });
 
-    if (cartItems.length === 0) {
+    if (!cart || cart.items.length === 0) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
-    const validatedItems: { itemId: string; amount: number }[] = [];
+    const cartItems = cart.items;
+    const validatedItems: { productId: string; amount: number }[] = [];
     let totalAmount = 0;
     for (const entry of cartItems) {
-      const currentItem = await prisma.item.findUnique({
-        where: { id: entry.itemId },
-        select: { id: true, isAvailable: true, sellingPrice: true },
-      });
-
-      if (!currentItem || !currentItem.isAvailable) {
+      const currentItem = entry.product;
+      if (!currentItem || !currentItem.isPublished) {
         return NextResponse.json(
-          { error: `Item ${entry.item.title || entry.itemId} is no longer available` },
+          { error: `Product ${currentItem?.title || entry.productId} is no longer available` },
           { status: 409 }
         );
       }
 
       validatedItems.push({
-        itemId: entry.itemId,
-        amount: currentItem.sellingPrice ?? 0,
+        productId: entry.productId,
+        amount: currentItem.basePrice ?? 0,
       });
-      totalAmount += currentItem.sellingPrice ?? 0;
+      totalAmount += currentItem.basePrice ?? 0;
     }
 
     const orderId = `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    
+
     const paymentResponse = await processPayment({
       amount: totalAmount,
       currency: "KES",
       paymentMethod: paymentMethod as any,
       orderId,
       customerEmail: session.user.email || undefined,
-      customerPhone: paymentMethod === "mpesa" ? mpesaPhone : (session.user as any).phone || undefined,
+      customerPhone: paymentMethod === "mpesa" ? mpesaPhone : undefined,
       customerName: session.user.name || undefined,
       metadata: {
         userId: session.user.id,
@@ -80,27 +85,30 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const itemIds = validatedItems.map((item) => item.itemId);
-      const uniqueItemIds = Array.from(new Set(itemIds));
+      const productIds = validatedItems.map((item) => item.productId);
+      const uniqueItemIds = Array.from(new Set(productIds));
 
-      await tx.item.updateMany({
+      await tx.product.updateMany({
         where: { id: { in: uniqueItemIds } },
-        data: { isAvailable: false },
+        data: { isPublished: false },
       });
 
-      const purchases = await tx.purchase.createMany({
-        data: validatedItems.map((item) => ({
-          itemId: item.itemId,
-          buyerId: session!.user.id,
-          amount: item.amount,
-          commissionAmount: Math.round(item.amount * 0.1),
+      const order = await tx.order.create({
+        data: {
+          userId: session.user.id,
+          orderNumber: orderId,
           status: "PENDING",
-        })),
+          subtotal: totalAmount,
+          shipping: 0,
+          tax: 0,
+          total: totalAmount,
+          shippingAddress: address as any,
+        },
       });
 
-      await tx.cartItem.deleteMany({ where: { userId: session!.user.id } });
+      await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
-      return { count: purchases.count, firstId: orderId, paymentId: paymentResponse.paymentId };
+      return { count: 1, firstId: orderId, paymentId: paymentResponse.paymentId };
     });
 
     return NextResponse.json({ 

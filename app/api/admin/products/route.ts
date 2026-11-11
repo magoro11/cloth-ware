@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const product = await prisma.product.update({
       where: { id: productId },
       data: { isPublished: true },
-      include: { seller: { select: { email: true, name: true } } },
+      include: { vendor: { select: { businessEmail: true, businessName: true } } },
     });
 
     // TODO: Send notification to seller
@@ -50,7 +50,7 @@ export async function PATCH(request: NextRequest) {
     const product = await prisma.product.update({
       where: { id: productId },
       data: { isPublished },
-      include: { seller: { select: { email: true, name: true } } },
+      include: { vendor: { select: { businessEmail: true, businessName: true } } },
     });
 
     return NextResponse.json({ success: true, product });

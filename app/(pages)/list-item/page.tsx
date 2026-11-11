@@ -31,10 +31,10 @@ export default async function ListItemPage(props: { searchParams: SearchParams }
 
   const item =
     searchParams.id
-      ? await prisma.item.findFirst({
+      ? await prisma.product.findFirst({
           where: {
             id: searchParams.id,
-            ownerId: session.user.role === "ADMIN" ? undefined : session.user.id,
+            vendorId: session.user.role === "ADMIN" ? undefined : session.user.id,
           },
           include: {
             images: { orderBy: { sortOrder: "asc" } },
@@ -44,7 +44,7 @@ export default async function ListItemPage(props: { searchParams: SearchParams }
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 md:px-8">
-      <ListItemForm initialItem={item ?? undefined} />
+      <ListItemForm initialItem={item ? (item as any) : undefined} />
     </main>
   );
 }

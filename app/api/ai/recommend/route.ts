@@ -13,13 +13,13 @@ const schema = z.object({
 export async function POST(request: Request) {
   try {
     const input = schema.parse(await request.json());
-    const candidates = await prisma.item.findMany({
+    const candidates = await prisma.product.findMany({
       where: {
-        size: input.size,
-        rentalPricePerDay: { lte: Math.max(input.budgetCents, 1000) },
+        isPublished: true,
+        basePrice: { lte: Math.max(input.budgetCents, 1000) },
       },
-      include: { images: { take: 1 }, owner: { select: { name: true } } },
-      orderBy: { featured: "desc" },
+      include: { images: { take: 1 }, variants: { where: { isActive: true }, take: 1 }, brand: true },
+      orderBy: { isFeatured: "desc" },
       take: 12,
     });
 
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         recommendations: candidates.slice(0, 4).map((item) => ({
           itemId: item.id,
           title: item.title,
-          brand: item.brand,
+          brand: item.brand?.name ?? "",
           reason: `Great ${input.eventType} fit in size ${input.size} and within budget.`,
         })),
         source: "fallback",
@@ -39,9 +39,9 @@ export async function POST(request: Request) {
       candidates.map((i) => ({
         id: i.id,
         title: i.title,
-        brand: i.brand,
-        category: i.category,
-        rentalPricePerDay: i.rentalPricePerDay,
+        brand: i.brand?.name ?? "",
+        category: i.categoryId ?? "",
+        basePrice: i.basePrice,
       })),
     )}`;
     const res = await fetch("https://api.openai.com/v1/responses", {

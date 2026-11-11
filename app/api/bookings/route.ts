@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { BookingStatus } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { calculateRentalQuote, overlaps } from "@/backend/lib/rental";
@@ -24,7 +23,7 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser();
     const body = createBookingSchema.parse(await request.json());
-    const item = await prisma.item.findUnique({
+    const item: any = await prismaAny.item.findUnique({
       where: { id: body.itemId },
       include: {
         owner: { select: { email: true, name: true } },
@@ -46,8 +45,8 @@ export async function POST(request: Request) {
 
     const requested = { startDate: body.startDate, endDate: body.endDate };
     const blocks = [
-      ...item.availabilityBlocks.map((x) => ({ startDate: x.startDate, endDate: x.endDate })),
-      ...item.bookings.map((x) => ({ startDate: x.startDate, endDate: x.endDate })),
+      ...(item.availabilityBlocks as any[]).map((x: any) => ({ startDate: x.startDate, endDate: x.endDate })),
+      ...(item.bookings as any[]).map((x: any) => ({ startDate: x.startDate, endDate: x.endDate })),
     ];
     if (blocks.some((range) => overlaps(range, requested))) {
       return NextResponse.json({ error: "Item unavailable for selected dates" }, { status: 409 });
@@ -73,7 +72,7 @@ export async function POST(request: Request) {
           securityDeposit: quote.securityDeposit,
           commissionAmount: quote.commissionAmount,
           ownerPayoutAmount: quote.ownerPayoutAmount,
-          status: BookingStatus.PENDING,
+          status: "PENDING",
           fulfillmentMethod: body.fulfillmentMethod,
           fulfillmentAddress: body.fulfillmentAddress || undefined,
           paymentMethod: body.paymentMethod,
@@ -94,7 +93,7 @@ export async function POST(request: Request) {
           securityDeposit: quote.securityDeposit,
           commissionAmount: quote.commissionAmount,
           ownerPayoutAmount: quote.ownerPayoutAmount,
-          status: BookingStatus.PENDING,
+          status: "PENDING",
         },
         include: { item: { include: { owner: true } } },
       });

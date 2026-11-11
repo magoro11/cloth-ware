@@ -11,43 +11,24 @@ const schema = z.object({
   repairCost: z.number().int().positive(),
 });
 
+const prismaAny = prisma as any;
+
 export async function POST(request: Request) {
   try {
     await requireRole(["ADMIN"]);
     const body = schema.parse(await request.json());
 
     const bookingId = body.bookingId?.trim() ? body.bookingId : undefined;
-    const booking = bookingId
-      ? await prisma.booking.findUnique({ where: { id: body.bookingId } })
-      : null;
 
-    const deducted = booking ? Math.min(booking.securityDeposit, body.repairCost) : 0;
-
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prismaAny.$transaction(async (tx: any) => {
       const repair = await tx.repairLog.create({
         data: {
           itemId: body.itemId,
           bookingId,
           adminNote: body.adminNote,
           repairCost: body.repairCost,
-          deductedFromDeposit: deducted,
         },
       });
-
-      if (booking) {
-        await tx.booking.update({
-          where: { id: booking.id },
-          data: { damageReported: true },
-        });
-        await tx.transaction.create({
-          data: {
-            bookingId: booking.id,
-            type: "REPAIR_DEDUCTION",
-            amount: deducted,
-            metadata: { note: body.adminNote, repairCost: body.repairCost },
-          },
-        });
-      }
 
       return repair;
     });

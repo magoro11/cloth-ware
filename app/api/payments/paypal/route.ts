@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPayPalConfig, handlePayPalWebhook, verifyWebhookSignature } from "@/backend/lib/payments";
 
+const prismaAny = prisma as any;
+
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
@@ -72,7 +74,7 @@ async function handleOrderCompleted(event: any) {
 
   const payment = await prisma.payment.findFirst({
     where: { providerPaymentId: orderId },
-    include: { order: { include: { items: true } } },
+    include: { order: { include: { subOrders: { include: { items: true } } } } },
   });
 
   if (!payment) {
@@ -100,14 +102,18 @@ async function handleOrderCompleted(event: any) {
       data: { status: "PAID" },
     });
 
-    for (const item of payment.order.items) {
-      await tx.productVariant.update({
-        where: { id: item.variantId || item.productId },
-        data: { stock: { decrement: item.quantity } },
-      });
+    for (const so of payment.order.subOrders) {
+      for (const item of so.items) {
+        if (item.variantId) {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { stock: { decrement: item.quantity } },
+          });
+        }
+      }
     }
 
-    await tx.transaction.create({
+    await prismaAny.transaction.create({
       data: {
         userId: payment.order.userId,
         type: "RENTAL_PAYMENT",

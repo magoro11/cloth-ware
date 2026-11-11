@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/access";
 import { errorStatus } from "@/backend/lib/errors";
 
 const schema = z.object({
-  bookingId: z.string(),
+  subOrderId: z.string(),
 });
 
 export async function POST(request: Request) {
@@ -18,47 +18,44 @@ export async function POST(request: Request) {
         { status: 500 },
       );
     }
-    const { bookingId } = schema.parse(await request.json());
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: { item: true },
+    const { subOrderId } = schema.parse(await request.json());
+    const subOrder = await prisma.subOrder.findUnique({
+      where: { id: subOrderId },
+      include: {
+        order: { select: { userId: true } },
+        items: { include: { product: { include: { brand: true } } } },
+      },
     });
-    if (!booking || booking.customerId !== user.id) {
-      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    if (!subOrder || subOrder.order.userId !== user.id) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
     const origin = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const item = subOrder.items[0]?.product;
+    const title = item?.title ?? "your order";
+    const brandName = item?.brand?.name;
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       success_url: `${origin}/dashboard?paid=1`,
-      cancel_url: `${origin}/item/${booking.itemId}?canceled=1`,
+      cancel_url: `${origin}/account/orders/${subOrder.orderId}?canceled=1`,
       metadata: {
-        bookingId: booking.id,
+        subOrderId: subOrder.id,
+        orderId: subOrder.orderId,
         customerId: user.id,
-        ownerId: booking.item.ownerId,
-        rentalAmount: String(booking.rentalAmount),
-        securityDeposit: String(booking.securityDeposit),
-        commissionAmount: String(booking.commissionAmount),
+        vendorId: subOrder.vendorId,
+        orderAmount: String(subOrder.total),
+        commissionAmount: String(subOrder.commissionAmount),
       },
       line_items: [
         {
-          quantity: 1,
+          quantity: subOrder.items[0]?.quantity || 1,
           price_data: {
-            currency: "usd",
-            unit_amount: booking.rentalAmount,
+            currency: "kes",
+            unit_amount: subOrder.total,
             product_data: {
-              name: `${booking.item.brand} ${booking.item.title} rental`,
-              description: `${booking.days} day rental`,
-            },
-          },
-        },
-        {
-          quantity: 1,
-          price_data: {
-            currency: "usd",
-            unit_amount: booking.securityDeposit,
-            product_data: {
-              name: "Security deposit",
+              name: `${brandName ? brandName + " " : ""}${title}`,
+              description: "Cloth marketplace order",
             },
           },
         },

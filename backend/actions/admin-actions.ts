@@ -9,9 +9,9 @@ export async function approveListingAction(formData: FormData) {
     const listingId = String(formData.get("listingId") || "");
     if (!listingId) return;
 
-    await prisma.item.update({
+    await prisma.product.update({
       where: { id: listingId },
-      data: { featured: true },
+      data: { isFeatured: true },
     });
 
     revalidatePath("/dashboard/admin");

@@ -12,16 +12,32 @@ export default async function MessagesPage(props: { searchParams: SearchParams }
   if (!session?.user) redirect("/auth/signin");
   const searchParams = await props.searchParams;
 
-  const [customerBookings, sellerBookings] = await Promise.all([
-    prisma.booking.findMany({
-      where: { customerId: session.user.id },
-      include: { item: { select: { owner: { select: { id: true, name: true, email: true } } } } },
+  const [customerOrders, vendorOrders] = await Promise.all([
+    prisma.order.findMany({
+      where: { userId: session.user.id },
+      include: {
+        subOrders: {
+          include: {
+            vendor: { select: { id: true, businessName: true, businessEmail: true } },
+          },
+        },
+      },
       take: 20,
       orderBy: { createdAt: "desc" },
     }),
-    prisma.booking.findMany({
-      where: { item: { ownerId: session.user.id } },
-      include: { customer: { select: { id: true, name: true, email: true } } },
+    prisma.order.findMany({
+      where: {
+        subOrders: { some: { vendorId: session.user.id } },
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        subOrders: {
+          where: { vendorId: session.user.id },
+          include: {
+            vendor: { select: { id: true, businessName: true, businessEmail: true } },
+          },
+        },
+      },
       take: 20,
       orderBy: { createdAt: "desc" },
     }),
@@ -29,18 +45,20 @@ export default async function MessagesPage(props: { searchParams: SearchParams }
 
   const contactsMap = new Map<string, { id: string; label: string; role: "BUYER" | "SELLER" }>();
 
-  for (const booking of customerBookings) {
-    contactsMap.set(booking.item.owner.id, {
-      id: booking.item.owner.id,
-      label: booking.item.owner.name || booking.item.owner.email || "Seller",
-      role: "SELLER",
-    });
+  for (const order of customerOrders) {
+    for (const so of order.subOrders) {
+      contactsMap.set(so.vendor.id, {
+        id: so.vendor.id,
+        label: so.vendor.businessName || so.vendor.businessEmail || "Seller",
+        role: "SELLER",
+      });
+    }
   }
 
-  for (const booking of sellerBookings) {
-    contactsMap.set(booking.customer.id, {
-      id: booking.customer.id,
-      label: booking.customer.name || booking.customer.email || "Buyer",
+  for (const order of vendorOrders) {
+    contactsMap.set(order.user.id, {
+      id: order.user.id,
+      label: order.user.name || order.user.email || "Buyer",
       role: "BUYER",
     });
   }

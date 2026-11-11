@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { CartList } from "@/frontend/components/cart-list";
@@ -7,35 +6,24 @@ import { databaseErrorMessage, isDatabaseUnavailable, logDatabaseIssue } from "@
 
 export const dynamic = "force-dynamic";
 
-type CartItemWithRelations = Prisma.CartItemGetPayload<{
-  include: {
-    item: {
-      include: {
-        images: { orderBy: { sortOrder: "asc" } };
-        owner: { select: { name: true; email: true } };
-      };
-    };
-  };
-}>;
-
 export default async function CartPage() {
   const session = await auth();
   if (!session?.user) redirect("/auth/signin");
 
-  let cartItems: CartItemWithRelations[] = [];
+  let cartItems: any[] = [];
   let dbError = false;
   let dbErrorMessage = "Database is currently unavailable.";
 
   try {
     cartItems = await prisma.cartItem.findMany({
-      where: { userId: session.user.id },
+      where: { cart: { userId: session.user.id } },
       include: {
-        item: {
+        product: {
           include: {
             images: { orderBy: { sortOrder: "asc" } },
-            owner: { select: { name: true, email: true } },
           },
         },
+        variant: true,
       },
       orderBy: { createdAt: "desc" },
     });

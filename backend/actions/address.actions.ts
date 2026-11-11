@@ -12,6 +12,7 @@ const addressSchema = z.object({
   line1: z.string().min(2).max(200),
   line2: z.string().max(200).optional().nullable(),
   city: z.string().min(2).max(100),
+  county: z.string().min(2).max(100),
   country: z.string().min(2).max(5).default("KE"),
   postalCode: z.string().max(20).optional().nullable(),
   isDefault: z.boolean().default(false),

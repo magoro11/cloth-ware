@@ -18,7 +18,7 @@ export default async function CheckoutSuccessPage({ searchParams }: { searchPara
 
   const order = await prisma.order.findFirst({
     where: { id: orderId, userId: session.user.id },
-    include: { payments: true, items: true },
+    include: { payments: true, subOrders: true },
   });
 
   if (!order) {
